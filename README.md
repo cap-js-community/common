@@ -1,12 +1,8 @@
-# CDS Common
+# CAP Node.js Community Common
 
 ## Getting Started
 
-Install:
-
-```
-npm install @sap/cds-common@latest --@sap:registry=https://int.repositories.cloud.sap/artifactory/api/npm/build-releases-npm/
-```
+- Run `npm add @cap-js-community/common` in `@sap/cds` project
 
 ## About this Project
 
@@ -171,7 +167,8 @@ Redis options can be provided in CDS env as follows:
       "redis-rateLimiting": {
         "vcap": {
           "tag": "my-redis"
-        }
+        },
+        "options": {}
       }
     }
   }
@@ -188,7 +185,8 @@ For shared redis configuration Redis service name can be provided in CDS env as 
       "redis": {
         "vcap": {
           "tag": "my-redis"
-        }
+        },
+        "options": {}
       }
     }
   }
@@ -197,4 +195,56 @@ For shared redis configuration Redis service name can be provided in CDS env as 
 
 ## Redis Client
 
-- tbd (use from event queue)
+A Redis Client broker is provided to connect to Redis service.
+
+### Usage
+
+#### Main default singleton
+
+```js
+const { RedisClient } = require("@cap-js-community/common");
+const mainClient = await RedisClient.default().createMainClientAndConnect(options);
+```
+
+#### Main named singleton
+
+```js
+const { RedisClient } = require("@cap-js-community/common");
+const mainClient = await RedisClient.default("name").createMainClientAndConnect(options);
+```
+
+#### Custom named
+
+```js
+const { RedisClient } = require("@cap-js-community/common");
+const client = await new RedisClient(name).createClientAndConnect(options);
+```
+
+### Options
+
+Options can be passed to Redis client via CDS environment via `cds.redis` section:
+Redis options can be provided in CDS env as follows:
+
+```json
+{
+  "cds": {
+    "requires": {
+      "redis": {
+        "vcap": {
+          "tag": "redis-cache"
+        },
+        "options": {}
+      }
+    }
+  }
+}
+```
+
+In addition, options can be passed to Redis client during creation via `options` parameter:
+
+```js
+const { RedisClient } = require("@cap-js-community/common");
+const mainClient = await RedisClient.default().createMainClientAndConnect(options);
+```
+
+For details on Redis `createClient` configuration options see [Redis Client Configuration](https://github.com/redis/node-redis/blob/master/docs/client-configuration.md).

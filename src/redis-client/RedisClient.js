@@ -114,7 +114,7 @@ class RedisClient {
     const socketOptions = {
       ...options,
       ...redisOptions,
-      password: options?.config?.password ?? options?.password ?? credentials?.password,
+      password: options?.password ?? options?.password ?? credentials?.password,
       socket,
     };
     try {
