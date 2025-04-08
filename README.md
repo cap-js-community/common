@@ -96,7 +96,7 @@ Options can be passed to migration check via CDS environment via `cds.migrationC
 
 - Maintain the whitelist extension file `migration-extension-whitelist.json` for compatible changes:
   - **Whitelist Entity**:
-  ```
+  ```json
   {
     "definitions": {
       "test.Test": {}
@@ -104,7 +104,7 @@ Options can be passed to migration check via CDS environment via `cds.migrationC
   }
   ```
   - **Whitelist Entity Element**:
-  ```
+  ```json
   {
     "definitions": {
       "test.Test": {
