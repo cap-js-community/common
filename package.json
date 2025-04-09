@@ -1,6 +1,6 @@
 {
   "name": "@cap-js-community/common",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "CAP Node.js Community Common",
   "homepage": "https://cap.cloud.sap/",
   "engines": {
