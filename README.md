@@ -1,5 +1,10 @@
 # CAP Node.js Community Common
 
+[![npm version](https://img.shields.io/npm/v/@cap-js-community/common)](https://www.npmjs.com/package/@cap-js-community/common)
+[![monthly downloads](https://img.shields.io/npm/dm/@cap-js-community/common)](https://www.npmjs.com/package/@cap-js-community/common)
+[![REUSE status](https://api.reuse.software/badge/github.com/cap-js-community/common)](https://api.reuse.software/info/github.com/cap-js-community/common)
+[![Main CI](https://github.com/cap-js-community/common/actions/workflows/main-ci.yml/badge.svg)](https://github.com/cap-js-community/common/commits/main)
+
 ## Getting Started
 
 - Run `npm add @cap-js-community/common` in `@sap/cds` project
@@ -262,4 +267,4 @@ We as members, contributors, and leaders pledge to make participation in our com
 
 ## Licensing
 
-Copyright 2025 SAP SE or an SAP affiliate company and sap-afc-sdk contributors. Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available [via the REUSE tool](https://api.reuse.software/info/github.com/cap-js-community/common).
+Copyright 2025 SAP SE or an SAP affiliate company and common contributors. Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available [via the REUSE tool](https://api.reuse.software/info/github.com/cap-js-community/common).
