@@ -1,6 +1,6 @@
 using test from '../db/schema';
 
-@cds.rateLimit
+@cds.rateLimiting
 service TestService {
     entity Books @readonly   as projection on test.Books;
     entity Pages @readonly   as projection on test.Pages;

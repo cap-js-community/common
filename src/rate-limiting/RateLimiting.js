@@ -17,10 +17,10 @@ class RateLimiting {
     this.resetTime = null;
     this.tenantCounts = {}; // [<tenant>: {concurrent: 0, window: 0}]
     this.maxConcurrent =
-      maxConcurrent || service.definition["@cds.rateLimt.maxConcurrent"] || cds.env.rateLimiting.maxConcurrent;
+      maxConcurrent || service.definition["@cds.rateLimiting.maxConcurrent"] || cds.env.rateLimiting.maxConcurrent;
     this.maxInWindow =
-      maxInWindow || service.definition["@cds.rateLimt.maxInWindow"] || cds.env.rateLimiting.maxInWindow;
-    this.window = window || service.definition["@cds.rateLimt.window"] || cds.env.rateLimiting.window;
+      maxInWindow || service.definition["@cds.rateLimiting.maxInWindow"] || cds.env.rateLimiting.maxInWindow;
+    this.window = window || service.definition["@cds.rateLimiting.window"] || cds.env.rateLimiting.window;
     this.redisActive = cds.env.rateLimiting.redis;
   }
 
@@ -181,18 +181,21 @@ class RateLimiting {
       req.error({
         code: "TOO_MANY_REQUESTS",
         status: 429,
+        statusCode: 429,
         message: `Too many requests in time window (max ${this.maxInWindow}), please try again later.`,
       });
     } else if (status.exceeds?.concurrent) {
       req.error({
         code: "TOO_MANY_REQUESTS",
         status: 429,
+        statusCode: 429,
         message: `Too many concurrent requests (max ${this.maxConcurrent}), please try again later.`,
       });
     } else {
       req.error({
         code: "TOO_MANY_REQUESTS",
         status: 429,
+        statusCode: 429,
         message: "Too many requests, please try again later.",
       });
     }

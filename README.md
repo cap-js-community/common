@@ -136,7 +136,7 @@ Options can be passed to migration check via CDS environment via `cds.migrationC
 ### Usage
 
 ```cds
-@cds.rateLimit
+@cds.rateLimiting
 service BookshopService {
   entity Books @readonly   as projection on test.Books;
 }
@@ -144,10 +144,10 @@ service BookshopService {
 
 ### Annotations
 
-- `@cds.rateLimt: Boolean`: Activate rate limit for service
-- `@cds.rateLimt.maxConcurrent: Number`: Maximum number of concurrent requests per service and tenant
-- `@cds.rateLimt.maxInWindow: Number`: Maximum number of requests in defined window per service and tenant
-- `@cds.rateLimt.window: Number`: Window length in milliseconds
+- `@cds.rateLimiting: Boolean`: Activate rate limit for service
+- `@cds.rateLimiting.maxConcurrent: Number`: Maximum number of concurrent requests per service and tenant
+- `@cds.rateLimiting.maxInWindow: Number`: Maximum number of requests in defined window per service and tenant
+- `@cds.rateLimiting.window: Number`: Window length in milliseconds
 
 ### Options
 

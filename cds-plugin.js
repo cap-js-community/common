@@ -10,9 +10,9 @@ const TIMEOUT_SHUTDOWN = 2500;
 if (cds.env.rateLimiting.plugin) {
   cds.on("serving", async (service) => {
     if (
-      service.definition["@cds.rateLimit"] ||
+      service.definition["@cds.rateLimiting"] ||
       Object.keys(service.definition).find((name) => {
-        return name.startsWith("@cds.rateLimit.");
+        return name.startsWith("@cds.rateLimiting.");
       })
     ) {
       const rateLimiting = new RateLimiting(service);
