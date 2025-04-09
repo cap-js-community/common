@@ -1121,7 +1121,7 @@ extend entity Books {
     expect(
       validateModification((schema) => {
         return {
-          schema: schema.replace("", ""),
+          schema,
         };
       }),
     ).toMatchObject({
