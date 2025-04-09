@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@cap-js/sqlite": "^1.10.0",
+    "commander": "^13.1.0",
     "redis": "^4.7.0",
     "verror": "^1.10.1"
   },
@@ -54,7 +55,6 @@
     "@sap/cds": "^8.9.1",
     "@sap/cds-common-content": "^2.1.0",
     "@sap/cds-dk": "^8.9.1",
-    "commander": "^13.1.0",
     "eslint": "9.24.0",
     "eslint-config-prettier": "10.1.1",
     "eslint-plugin-jest": "28.11.0",

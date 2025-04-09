@@ -458,6 +458,33 @@ extend entity Books {
       ],
       success: true,
     });
+    migrationCheck.options.adminHash = "XXX";
+    result = migrationCheck.check(true);
+    delete migrationCheck.options.adminHash;
+    expect(result).toMatchObject({
+      messages: [
+        {
+          code: "ReleasedElementTypeCannotBeShortened",
+          element: "title",
+          entity: "test.Books",
+          severity: "error",
+          text: "The data type of a released element cannot be shortened: test.Books.title",
+        },
+        {
+          code: "ReleasedElementTypeCannotBeShortened",
+          element: "title",
+          entity: "test.Books.texts",
+          severity: "error",
+          text: "The data type of a released element cannot be shortened: test.Books.texts.title",
+        },
+        {
+          code: "AdminHashInvalid",
+          severity: "error",
+          text: "Admin hash is not valid for current migration check state",
+        },
+      ],
+      success: false,
+    });
   });
 
   it("Update - No build CSN", async () => {

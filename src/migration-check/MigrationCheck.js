@@ -200,16 +200,25 @@ class MigrationCheck {
       if (admin) {
         result.adminHash = messageHash;
       }
-      if (this.options.adminHash && this.options.adminHash === messageHash) {
-        for (const message of result.messages) {
-          message.severity = message.severity === "error" ? "warning" : message.severity;
+      if (this.options.adminHash) {
+        if (this.options.adminHash === messageHash) {
+          for (const message of result.messages) {
+            message.severity = message.severity === "error" ? "warning" : message.severity;
+          }
+          messages.push({
+            code: "AcceptedByAdmin",
+            text: "Migration check errors accepted by admin",
+            severity: "info",
+          });
+          result.success = true;
+        } else {
+          messages.push({
+            code: "AdminHashInvalid",
+            text: "Admin hash is not valid for current migration check state",
+            severity: "error",
+          });
+          result.success = false;
         }
-        messages.push({
-          code: "AcceptedByAdmin",
-          text: "Migration check errors accepted by admin",
-          severity: "info",
-        });
-        result.success = true;
       } else {
         result.success = false;
       }
