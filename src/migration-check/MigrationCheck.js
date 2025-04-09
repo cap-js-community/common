@@ -312,7 +312,7 @@ function releasedEntityCheck(csnBuild, csnProd, whitelist, options) {
   const messages = [];
   visitPersistenceEntities(csnProd, (definitionProd) => {
     let lookupName = definitionProd.name;
-    if (lookupName.startsWith("cds.xt.") && !this.options.checkMtx) {
+    if (lookupName.startsWith("cds.xt.") && !options.checkMtx) {
       return;
     }
     const definitionBuild = csnBuild.definitions[lookupName];
