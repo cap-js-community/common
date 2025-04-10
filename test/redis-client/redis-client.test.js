@@ -2,6 +2,7 @@
 
 const cds = require("@sap/cds");
 
+const redis = require("redis");
 const redisMock = require("../mocks/redis");
 jest.mock("redis", () => require("../mocks/redis"));
 
@@ -58,6 +59,38 @@ describe("Redis Client", () => {
     const redisClient = RedisClient.default();
     const result = await redisClient.connectionCheck();
     expect(result).toBe(true);
+  });
+
+  it("Options", async () => {
+    cds.env.requires.redis ??= {};
+    cds.env.requires.redis.options = { b: 1 };
+    cds.env.requires.redis.credentials = {
+      hostname: "localhost",
+      tls: true,
+      port: 6379,
+      password: "1234",
+    };
+    const redisClient = RedisClient.default();
+    const result = await redisClient.createMainClientAndConnect({
+      a: 1,
+      password: "12345",
+      socket: {
+        port: 6380,
+        rejectUnauthorized: false,
+      },
+    });
+    expect(result).toBeDefined();
+    expect(redis.createClient).toHaveBeenCalledWith({
+      a: 1,
+      b: 1,
+      password: "12345",
+      socket: {
+        host: "localhost",
+        port: 6380,
+        rejectUnauthorized: false,
+        tls: true,
+      },
+    });
   });
 
   it("Error - Create Client", async () => {

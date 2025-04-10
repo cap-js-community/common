@@ -103,7 +103,7 @@ class RedisClient {
 
   createClientBase(redisOptions = {}) {
     const { credentials, options } =
-      (this.name ? cds.requires[`redis-${this.name}`] : undefined) || cds.requires["redis"] || {};
+      (this.name ? cds.env.requires[`redis-${this.name}`] : undefined) || cds.env.requires["redis"] || {};
     const socket = {
       host: credentials?.hostname ?? "127.0.0.1",
       tls: !!credentials?.tls,
@@ -114,7 +114,7 @@ class RedisClient {
     const socketOptions = {
       ...options,
       ...redisOptions,
-      password: options?.password ?? options?.password ?? credentials?.password,
+      password: redisOptions?.password ?? options?.password ?? credentials?.password,
       socket,
     };
     try {
