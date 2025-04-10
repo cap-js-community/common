@@ -77,6 +77,22 @@ Options can be passed to replication cache via CDS environment via `cds.replicat
 - `tmpDir: Boolean`: Store replication cache file in temporary directory. Default is `false`
 - `baseDir: String`: Base directory for replication cache files. Default is `"temp"`
 
+### Test
+
+Replication cache is inactive per default for tests (`test` profile). It can be enabled via CDS env:
+
+```json
+{
+  "cds": {
+    "replicationCache": {
+      "[test]": {
+        "plugin": true
+      }
+    }
+  }
+}
+```
+
 ## Migration Check
 
 ### Options
@@ -201,6 +217,22 @@ For shared redis configuration Redis service name can be provided in CDS env as 
 }
 ```
 
+### Test
+
+Rate limiting is inactive per default for tests (`test` profile). It can be enabled via CDS env:
+
+```json
+{
+  "cds": {
+    "rateLimiting": {
+      "[test]": {
+        "plugin": true
+      }
+    }
+  }
+}
+```
+
 ## Redis Client
 
 A Redis Client broker is provided to connect to Redis service.
@@ -225,7 +257,7 @@ const mainClient = await RedisClient.default("name").createMainClientAndConnect(
 
 ```js
 const { RedisClient } = require("@cap-js-community/common");
-const client = await new RedisClient(name).createClientAndConnect(options);
+const client = await new RedisClient("name").createClientAndConnect(options);
 ```
 
 ### Options
@@ -246,6 +278,28 @@ Redis options can be provided in CDS env as follows:
     }
   }
 }
+```
+
+Specific Redis options for a custom name can be established as follows:
+
+```json
+{
+  "cds": {
+    "requires": {
+      "redis-customName": {
+        "vcap": {
+          "tag": "redis-cache"
+        },
+        "options": {}
+      }
+    }
+  }
+}
+```
+
+```js
+const { RedisClient } = require("@cap-js-community/common");
+const mainClient = await RedisClient.default("customName").createMainClientAndConnect(options);
 ```
 
 In addition, options can be passed to Redis client during creation via `options` parameter:
