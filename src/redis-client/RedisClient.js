@@ -184,6 +184,9 @@ class RedisClient {
   }
 
   async closeMainClient() {
+    if (!this.mainClientPromise) {
+      return;
+    }
     const client = this.mainClientPromise;
     this.mainClientPromise = null;
     await this.resilientClientClose(await client);
@@ -191,6 +194,9 @@ class RedisClient {
   }
 
   async closeAdditionalClient() {
+    if (!this.additionalClientPromise) {
+      return;
+    }
     const client = this.additionalClientPromise;
     this.additionalClientPromise = null;
     await this.resilientClientClose(await client);
@@ -198,6 +204,9 @@ class RedisClient {
   }
 
   async closeSubscribeClient() {
+    if (!this.subscriberClientPromise) {
+      return;
+    }
     const client = this.subscriberClientPromise;
     this.subscriberClientPromise = null;
     await this.resilientClientClose(await client);
