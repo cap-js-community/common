@@ -540,7 +540,14 @@ function journalModeCheck(csnBuild, csnProd, whitelist, options) {
       if (definitionProd) {
         if (definitionBuild["@cds.persistence.journal"] && !definitionProd["@cds.persistence.journal"]) {
           const entityMessages = Checks.reduce((messages, check) => {
-            messages.push(...check(csnBuild, csnProd, {}, { ...options, filter: [definitionBuild.name], check: "journalModeCheck" }));
+            messages.push(
+              ...check(
+                csnBuild,
+                csnProd,
+                {},
+                { ...options, filter: [definitionBuild.name], check: "journalModeCheck" },
+              ),
+            );
             return messages;
           }, []);
           if (entityMessages.length > 0) {
