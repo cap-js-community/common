@@ -1474,6 +1474,75 @@ extend entity Books {
     });
   });
 
+  it("Validate - ReleasedEntityJournalModeAndEntityChangeIsNotAllowed", async () => {
+    expect(
+      validateModification((schema) => {
+        return {
+          schema: schema.replace("// entity annotation stub", "@cds.persistence.journal"),
+        };
+      }),
+    ).toMatchObject({
+      messages: [],
+      success: true,
+    });
+    expect(
+      validateModification(
+        (schema) => {
+          return {
+            schema: schema
+              .replace("// entity annotation stub", "@cds.persistence.journal")
+              .replace("// entity element stub", "newElement: String;"),
+          };
+        },
+        {
+          "test.Dummy": {
+            elements: {
+              newElement: {},
+            },
+          },
+        },
+      ),
+    ).toMatchObject({
+      messages: [
+        {
+          code: "ReleasedEntityJournalModeAndEntityChangeIsNotAllowed",
+          element: undefined,
+          entity: "test.Dummy",
+          severity: "error",
+          text: "Enabling journal mode and changing entity in same cycle is not allowed: test.Dummy",
+        },
+      ],
+      success: false,
+    });
+    expect(
+      validateModification((schema) => {
+        return {
+          schema: schema
+            .replace("// entity annotation stub", "@cds.persistence.journal")
+            .replace("number : Decimal(10, 10);", "number : Decimal(1, 1);"),
+        };
+      }),
+    ).toMatchObject({
+      messages: [
+        {
+          code: "ReleasedElementScalePrecisionCannotBeLower",
+          element: "number",
+          entity: "test.Dummy",
+          severity: "error",
+          text: "The scale or precision of a released element cannot be reduced: test.Dummy.number",
+        },
+        {
+          code: "ReleasedEntityJournalModeAndEntityChangeIsNotAllowed",
+          element: undefined,
+          entity: "test.Dummy",
+          severity: "error",
+          text: "Enabling journal mode and changing entity in same cycle is not allowed: test.Dummy",
+        },
+      ],
+      success: false,
+    });
+  });
+
   function validateModification(cb, whitelist = {}) {
     shelljs.exec(`cds build --production`, { silent: true });
     migrationCheck.update();

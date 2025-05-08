@@ -8,7 +8,7 @@ const crypto = require("crypto");
 const COMPONENT_NAME = "migrationCheck";
 const STRING_DEFAULT_LENGTH = 5000;
 
-const Checks = [releasedEntityCheck, newEntityCheck, uniqueIndexCheck];
+const Checks = [releasedEntityCheck, newEntityCheck, uniqueIndexCheck, journalModeCheck];
 const Messages = {
   ReleasedEntityCannotBeRemoved: "A released entity cannot be removed",
   ReleasedEntityDraftEnablementCannotBeChanged: "The draft enablement state of a released entity cannot be changed",
@@ -25,6 +25,8 @@ const Messages = {
   ReleasedElementCardinalityCannotBeChanged: "The cardinality of a released element cannot be changed",
   ReleasedElementOnConditionCannotBeChanged: "The ON condition of a released element cannot be changed",
   ReleasedElementKeysConditionCannotBeChanged: "The keys condition of a released element cannot be changed",
+  ReleasedEntityJournalModeAndEntityChangeIsNotAllowed:
+    "Enabling journal mode and changing entity in same cycle is not allowed",
   ReleasedEntityIndexChangeIsNotAllowed: "Changes to the index of a released entity are not allowed",
   ReleasedEntityIndexChangeIsNotWhitelisted: "Changes to the index of a released entity must be whitelisted",
   ReleasedElementTypeExtensionIsNotWhitelisted: "Extending the type of a released element requires whitelisting",
@@ -310,200 +312,249 @@ class MigrationCheck {
 
 function releasedEntityCheck(csnBuild, csnProd, whitelist, options) {
   const messages = [];
-  visitPersistenceEntities(csnProd, (definitionProd) => {
-    let lookupName = definitionProd.name;
-    if (lookupName.startsWith("cds.xt.") && !options.checkMtx) {
-      return;
-    }
-    const definitionBuild = csnBuild.definitions[lookupName];
-    if (!definitionBuild) {
-      report(messages, MessagesCodes.ReleasedEntityCannotBeRemoved, definitionProd.name);
-      return;
-    }
-    if (definitionProd["@odata.draft.enabled"] !== definitionBuild["@odata.draft.enabled"]) {
-      report(messages, MessagesCodes.ReleasedEntityDraftEnablementCannotBeChanged, definitionProd.name);
-    }
-    const definitionWhitelist = whitelist.definitions && whitelist.definitions[definitionProd.name];
-    Object.keys(definitionProd.elements || {}).forEach((elementProdName) => {
-      const elementProd = definitionProd.elements[elementProdName];
-      const elementBuild = definitionBuild.elements[elementProdName];
-      const elementWhitelist =
-        definitionWhitelist && definitionWhitelist.elements && definitionWhitelist.elements[elementProdName];
-      if (elementBuild) {
-        if (["cds.Association", "cds.Composition"].includes(elementProd.type)) {
-          if (!((elementProd.on && elementBuild.on) || (elementProd.keys && elementBuild.keys))) {
+  visitPersistenceEntities(
+    csnProd,
+    (definitionProd) => {
+      let lookupName = definitionProd.name;
+      if (lookupName.startsWith("cds.xt.") && !options.checkMtx) {
+        return;
+      }
+      const definitionBuild = csnBuild.definitions[lookupName];
+      if (!definitionBuild) {
+        report(messages, MessagesCodes.ReleasedEntityCannotBeRemoved, definitionProd.name);
+        return;
+      }
+      if (definitionProd["@odata.draft.enabled"] !== definitionBuild["@odata.draft.enabled"]) {
+        report(messages, MessagesCodes.ReleasedEntityDraftEnablementCannotBeChanged, definitionProd.name);
+      }
+      const definitionWhitelist = whitelist.definitions && whitelist.definitions[definitionProd.name];
+      Object.keys(definitionProd.elements || {}).forEach((elementProdName) => {
+        const elementProd = definitionProd.elements[elementProdName];
+        const elementBuild = definitionBuild.elements[elementProdName];
+        const elementWhitelist =
+          definitionWhitelist && definitionWhitelist.elements && definitionWhitelist.elements[elementProdName];
+        if (elementBuild) {
+          if (["cds.Association", "cds.Composition"].includes(elementProd.type)) {
+            if (!((elementProd.on && elementBuild.on) || (elementProd.keys && elementBuild.keys))) {
+              report(
+                messages,
+                MessagesCodes.ReleasedElementManagedUnmanagedCannotBeChanged,
+                definitionProd.name,
+                elementProdName,
+              );
+              return;
+            }
+          }
+        }
+        if (elementProd.on) {
+          return; // Skip unmanaged association / composition
+        }
+        if (!elementBuild) {
+          if (!elementProd.virtual) {
+            report(messages, MessagesCodes.ReleasedElementCannotBeRemoved, definitionProd.name, elementProdName);
+          }
+        } else if (elementProd.key !== elementBuild.key) {
+          report(messages, MessagesCodes.ReleasedElementKeyCannotBeChanged, definitionProd.name, elementProdName);
+        } else if (elementProd.virtual !== elementBuild.virtual) {
+          report(messages, MessagesCodes.ReleasedElementVirtualCannotBeChanged, definitionProd.name, elementProdName);
+        } else if (elementProd.localized && !elementBuild.localized) {
+          report(
+            messages,
+            MessagesCodes.ReleasedElementLocalizationCannotBeChanged,
+            definitionProd.name,
+            elementProdName,
+          );
+        } else if (!elementProd.notNull && elementBuild.notNull) {
+          report(messages, MessagesCodes.ReleasedElementNullableCannotBeChanged, definitionProd.name, elementProdName);
+        } else if (normalizeType(csnProd, elementProd.type) !== normalizeType(csnBuild, elementBuild.type)) {
+          report(messages, MessagesCodes.ReleasedElementTypeCannotBeChanged, definitionProd.name, elementProdName);
+        } else if ((elementProd.length || STRING_DEFAULT_LENGTH) > (elementBuild.length || STRING_DEFAULT_LENGTH)) {
+          report(messages, MessagesCodes.ReleasedElementTypeCannotBeShortened, definitionProd.name, elementProdName);
+        } else if ((elementProd.length || STRING_DEFAULT_LENGTH) < (elementBuild.length || STRING_DEFAULT_LENGTH)) {
+          if (!elementWhitelist && options.whitelist) {
             report(
               messages,
-              MessagesCodes.ReleasedElementManagedUnmanagedCannotBeChanged,
+              MessagesCodes.ReleasedElementTypeExtensionIsNotWhitelisted,
               definitionProd.name,
               elementProdName,
             );
-            return;
+          }
+        } else if (elementProd.scale > elementBuild.scale || elementProd.precision > elementBuild.precision) {
+          report(
+            messages,
+            MessagesCodes.ReleasedElementScalePrecisionCannotBeLower,
+            definitionProd.name,
+            elementProdName,
+          );
+        } else if (elementProd.scale < elementBuild.scale || elementProd.precision < elementBuild.precision) {
+          if (!elementWhitelist && options.whitelist) {
+            report(
+              messages,
+              MessagesCodes.ReleasedElementScalePrecisionExtensionIsNotWhitelisted,
+              definitionProd.name,
+              elementProdName,
+            );
+          }
+        } else if (elementProd.target !== elementBuild.target) {
+          if (
+            isPersistenceEntity(csnProd, elementProd.target) ||
+            isPersistenceEntity(csnBuild, elementBuild.target) ||
+            JSON.stringify(entityKeyInfo(csnProd, elementProd.target)) !==
+              JSON.stringify(entityKeyInfo(csnBuild, elementBuild.target))
+          ) {
+            report(messages, MessagesCodes.ReleasedElementTargetCannotBeChanged, definitionProd.name, elementProdName);
+          }
+        } else if (
+          (elementProd.cardinality && elementProd.cardinality.max) !==
+          (elementBuild.cardinality && elementBuild.cardinality.max)
+        ) {
+          report(
+            messages,
+            MessagesCodes.ReleasedElementCardinalityCannotBeChanged,
+            definitionProd.name,
+            elementProdName,
+          );
+        } else if (JSON.stringify(elementProd.on) !== JSON.stringify(elementBuild.on)) {
+          if (isPersistenceEntity(csnProd, elementProd.target) || isPersistenceEntity(csnBuild, elementBuild.target)) {
+            report(
+              messages,
+              MessagesCodes.ReleasedElementOnConditionCannotBeChanged,
+              definitionProd.name,
+              elementProdName,
+            );
+          }
+        } else if (JSON.stringify(elementProd.keys) !== JSON.stringify(elementBuild.keys)) {
+          if (isPersistenceEntity(csnProd, elementProd.target) || isPersistenceEntity(csnBuild, elementBuild.target)) {
+            report(
+              messages,
+              MessagesCodes.ReleasedElementKeysConditionCannotBeChanged,
+              definitionProd.name,
+              elementProdName,
+            );
           }
         }
-      }
-      if (elementProd.on) {
-        return; // Skip unmanaged association / composition
-      }
-      if (!elementBuild) {
-        if (!elementProd.virtual) {
-          report(messages, MessagesCodes.ReleasedElementCannotBeRemoved, definitionProd.name, elementProdName);
-        }
-      } else if (elementProd.key !== elementBuild.key) {
-        report(messages, MessagesCodes.ReleasedElementKeyCannotBeChanged, definitionProd.name, elementProdName);
-      } else if (elementProd.virtual !== elementBuild.virtual) {
-        report(messages, MessagesCodes.ReleasedElementVirtualCannotBeChanged, definitionProd.name, elementProdName);
-      } else if (elementProd.localized && !elementBuild.localized) {
-        report(
-          messages,
-          MessagesCodes.ReleasedElementLocalizationCannotBeChanged,
-          definitionProd.name,
-          elementProdName,
-        );
-      } else if (!elementProd.notNull && elementBuild.notNull) {
-        report(messages, MessagesCodes.ReleasedElementNullableCannotBeChanged, definitionProd.name, elementProdName);
-      } else if (normalizeType(csnProd, elementProd.type) !== normalizeType(csnBuild, elementBuild.type)) {
-        report(messages, MessagesCodes.ReleasedElementTypeCannotBeChanged, definitionProd.name, elementProdName);
-      } else if ((elementProd.length || STRING_DEFAULT_LENGTH) > (elementBuild.length || STRING_DEFAULT_LENGTH)) {
-        report(messages, MessagesCodes.ReleasedElementTypeCannotBeShortened, definitionProd.name, elementProdName);
-      } else if ((elementProd.length || STRING_DEFAULT_LENGTH) < (elementBuild.length || STRING_DEFAULT_LENGTH)) {
-        if (!elementWhitelist && options.whitelist) {
-          report(
-            messages,
-            MessagesCodes.ReleasedElementTypeExtensionIsNotWhitelisted,
-            definitionProd.name,
-            elementProdName,
-          );
-        }
-      } else if (elementProd.scale > elementBuild.scale || elementProd.precision > elementBuild.precision) {
-        report(
-          messages,
-          MessagesCodes.ReleasedElementScalePrecisionCannotBeLower,
-          definitionProd.name,
-          elementProdName,
-        );
-      } else if (elementProd.scale < elementBuild.scale || elementProd.precision < elementBuild.precision) {
-        if (!elementWhitelist && options.whitelist) {
-          report(
-            messages,
-            MessagesCodes.ReleasedElementScalePrecisionExtensionIsNotWhitelisted,
-            definitionProd.name,
-            elementProdName,
-          );
-        }
-      } else if (elementProd.target !== elementBuild.target) {
-        if (
-          isPersistenceEntity(csnProd, elementProd.target) ||
-          isPersistenceEntity(csnBuild, elementBuild.target) ||
-          JSON.stringify(entityKeyInfo(csnProd, elementProd.target)) !==
-            JSON.stringify(entityKeyInfo(csnBuild, elementBuild.target))
-        ) {
-          report(messages, MessagesCodes.ReleasedElementTargetCannotBeChanged, definitionProd.name, elementProdName);
-        }
-      } else if (
-        (elementProd.cardinality && elementProd.cardinality.max) !==
-        (elementBuild.cardinality && elementBuild.cardinality.max)
-      ) {
-        report(messages, MessagesCodes.ReleasedElementCardinalityCannotBeChanged, definitionProd.name, elementProdName);
-      } else if (JSON.stringify(elementProd.on) !== JSON.stringify(elementBuild.on)) {
-        if (isPersistenceEntity(csnProd, elementProd.target) || isPersistenceEntity(csnBuild, elementBuild.target)) {
-          report(
-            messages,
-            MessagesCodes.ReleasedElementOnConditionCannotBeChanged,
-            definitionProd.name,
-            elementProdName,
-          );
-        }
-      } else if (JSON.stringify(elementProd.keys) !== JSON.stringify(elementBuild.keys)) {
-        if (isPersistenceEntity(csnProd, elementProd.target) || isPersistenceEntity(csnBuild, elementBuild.target)) {
-          report(
-            messages,
-            MessagesCodes.ReleasedElementKeysConditionCannotBeChanged,
-            definitionProd.name,
-            elementProdName,
-          );
-        }
-      }
-    });
-  });
+      });
+    },
+    options.filter,
+  );
   return messages;
 }
 
 function newEntityCheck(csnBuild, csnProd, whitelist, options) {
   const messages = [];
-  visitPersistenceEntities(csnBuild, (definitionBuild, { draft } = {}) => {
-    let lookupName = definitionBuild.name;
-    const definitionProd = csnProd.definitions[lookupName];
-    const definitionWhitelist = whitelist.definitions && whitelist.definitions[definitionBuild.name];
-    if (!definitionProd && !definitionWhitelist && options.whitelist) {
-      report(messages, MessagesCodes.NewEntityIsNotWhitelisted, definitionBuild.name);
-      return;
-    }
-    if (definitionProd) {
-      Object.keys(definitionBuild.elements || {}).forEach((elementBuildName) => {
-        const elementBuild = definitionBuild.elements[elementBuildName];
-        if (elementBuild.virtual) {
-          return;
-        }
-        const elementProd = definitionProd.elements[elementBuildName];
-        const elementWhitelist =
-          definitionWhitelist && definitionWhitelist.elements && definitionWhitelist.elements[elementBuildName];
-        if (!elementProd) {
-          if (!elementWhitelist && options.whitelist) {
-            report(messages, MessagesCodes.NewEntityElementIsNotWhitelisted, definitionBuild.name, elementBuildName);
+  visitPersistenceEntities(
+    csnBuild,
+    (definitionBuild, { draft } = {}) => {
+      let lookupName = definitionBuild.name;
+      const definitionProd = csnProd.definitions[lookupName];
+      const definitionWhitelist = whitelist.definitions && whitelist.definitions[definitionBuild.name];
+      if (!definitionProd && !definitionWhitelist && options.whitelist) {
+        report(messages, MessagesCodes.NewEntityIsNotWhitelisted, definitionBuild.name);
+        return;
+      }
+      if (definitionProd) {
+        Object.keys(definitionBuild.elements || {}).forEach((elementBuildName) => {
+          const elementBuild = definitionBuild.elements[elementBuildName];
+          if (elementBuild.virtual) {
+            return;
           }
-          if (
-            !draft &&
-            elementBuild.notNull &&
-            (elementBuild.default === undefined || elementBuild.default?.val === null)
-          ) {
-            report(messages, MessagesCodes.NewEntityElementNotNullableDefault, definitionBuild.name, elementBuildName);
+          const elementProd = definitionProd.elements[elementBuildName];
+          const elementWhitelist =
+            definitionWhitelist && definitionWhitelist.elements && definitionWhitelist.elements[elementBuildName];
+          if (!elementProd) {
+            if (!elementWhitelist && options.whitelist) {
+              report(messages, MessagesCodes.NewEntityElementIsNotWhitelisted, definitionBuild.name, elementBuildName);
+            }
+            if (
+              !draft &&
+              elementBuild.notNull &&
+              (elementBuild.default === undefined || elementBuild.default?.val === null)
+            ) {
+              report(
+                messages,
+                MessagesCodes.NewEntityElementNotNullableDefault,
+                definitionBuild.name,
+                elementBuildName,
+              );
+            }
           }
-        }
-      });
-    }
-  });
+        });
+      }
+    },
+    options.filter,
+  );
   return messages;
 }
 
 function uniqueIndexCheck(csnBuild, csnProd, whitelist, options) {
   const messages = [];
-  visitPersistenceEntities(csnBuild, (definitionBuild) => {
-    const definitionWhitelist = whitelist.definitions && whitelist.definitions[definitionBuild.name];
-    const definitionProd = csnProd.definitions[definitionBuild.name];
-    if (definitionProd) {
-      Object.keys(definitionBuild).forEach((key) => {
-        if (key.startsWith("@assert.unique.")) {
-          const uniqueIndexAnnotationBuild = definitionBuild[key];
-          const uniqueIndexAnnotationProd = definitionProd[key];
-          if (uniqueIndexAnnotationBuild && !uniqueIndexAnnotationProd && !definitionWhitelist && options.whitelist) {
-            report(messages, MessagesCodes.NewEntityIndexIsNotWhitelisted, definitionBuild.name);
-          } else if (uniqueIndexAnnotationBuild && uniqueIndexAnnotationProd) {
-            const checkProd = uniqueIndexAnnotationProd.every((indexPartProd) => {
-              return uniqueIndexAnnotationBuild.find((indexPartBuild) => {
-                return (indexPartProd["="] || indexPartProd) === (indexPartBuild["="] || indexPartBuild);
+  visitPersistenceEntities(
+    csnBuild,
+    (definitionBuild) => {
+      const definitionWhitelist = whitelist.definitions && whitelist.definitions[definitionBuild.name];
+      const definitionProd = csnProd.definitions[definitionBuild.name];
+      if (definitionProd) {
+        Object.keys(definitionBuild).forEach((key) => {
+          if (key.startsWith("@assert.unique.")) {
+            const uniqueIndexAnnotationBuild = definitionBuild[key];
+            const uniqueIndexAnnotationProd = definitionProd[key];
+            if (uniqueIndexAnnotationBuild && !uniqueIndexAnnotationProd && !definitionWhitelist && options.whitelist) {
+              report(messages, MessagesCodes.NewEntityIndexIsNotWhitelisted, definitionBuild.name);
+            } else if (uniqueIndexAnnotationBuild && uniqueIndexAnnotationProd) {
+              const checkProd = uniqueIndexAnnotationProd.every((indexPartProd) => {
+                return uniqueIndexAnnotationBuild.find((indexPartBuild) => {
+                  return (indexPartProd["="] || indexPartProd) === (indexPartBuild["="] || indexPartBuild);
+                });
               });
-            });
-            if (!checkProd) {
-              report(messages, MessagesCodes.ReleasedEntityIndexChangeIsNotAllowed, definitionBuild.name);
-            }
-            const checkBuild = uniqueIndexAnnotationBuild.every((indexPartBuild) => {
-              return uniqueIndexAnnotationProd.find((indexPartProd) => {
-                return (indexPartBuild["="] || indexPartBuild) === (indexPartProd["="] || indexPartProd);
+              if (!checkProd) {
+                report(messages, MessagesCodes.ReleasedEntityIndexChangeIsNotAllowed, definitionBuild.name);
+              }
+              const checkBuild = uniqueIndexAnnotationBuild.every((indexPartBuild) => {
+                return uniqueIndexAnnotationProd.find((indexPartProd) => {
+                  return (indexPartBuild["="] || indexPartBuild) === (indexPartProd["="] || indexPartProd);
+                });
               });
-            });
-            if (!checkBuild && !definitionWhitelist && options.whitelist) {
-              report(messages, MessagesCodes.ReleasedEntityIndexChangeIsNotWhitelisted, definitionBuild.name);
+              if (!checkBuild && !definitionWhitelist && options.whitelist) {
+                report(messages, MessagesCodes.ReleasedEntityIndexChangeIsNotWhitelisted, definitionBuild.name);
+              }
             }
           }
-        }
-      });
-    }
-  });
+        });
+      }
+    },
+    options.filter,
+  );
   return messages;
 }
 
-function visitPersistenceEntities(csn, onEntity) {
+function journalModeCheck(csnBuild, csnProd, whitelist, options) {
+  const messages = [];
+  if (options.check === "journalModeCheck") {
+    // Recursion
+    return messages;
+  }
+  visitPersistenceEntities(
+    csnBuild,
+    (definitionBuild) => {
+      const definitionProd = csnProd.definitions[definitionBuild.name];
+      if (definitionProd) {
+        if (definitionBuild["@cds.persistence.journal"] && !definitionProd["@cds.persistence.journal"]) {
+          const entityMessages = Checks.reduce((messages, check) => {
+            messages.push(...check(csnBuild, csnProd, {}, { ...options, filter: [definitionBuild.name], check: "journalModeCheck" }));
+            return messages;
+          }, []);
+          if (entityMessages.length > 0) {
+            report(messages, MessagesCodes.ReleasedEntityJournalModeAndEntityChangeIsNotAllowed, definitionBuild.name);
+          }
+        }
+      }
+    },
+    options.filter,
+  );
+  return messages;
+}
+
+function visitPersistenceEntities(csn, onEntity, filter) {
   if (!onEntity) {
     return;
   }
@@ -511,6 +562,9 @@ function visitPersistenceEntities(csn, onEntity) {
     return csn.definitions[name].kind === "service";
   });
   return Object.keys(csn.definitions).forEach((name) => {
+    if (filter && !filter.includes(name)) {
+      return;
+    }
     // Normal persistence entity
     const definition = csn.definitions[name];
     if (

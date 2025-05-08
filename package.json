@@ -46,7 +46,7 @@
   "dependencies": {
     "@cap-js/sqlite": "^1.11.0",
     "commander": "^13.1.0",
-    "redis": "^4.7.0",
+    "redis": "^4.7.1",
     "verror": "^1.10.1"
   },
   "devDependencies": {

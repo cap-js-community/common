@@ -52,6 +52,7 @@ entity Quotes {
         text : String;
 }
 
+// entity annotation stub
 entity Dummy {
     key ID   : String;
         name : String not null;
