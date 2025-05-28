@@ -44,7 +44,7 @@
     "audit": "npm audit --only=prod"
   },
   "dependencies": {
-    "@cap-js/sqlite": "^1.11.0",
+    "@cap-js/sqlite": "^2.0.0",
     "commander": "^14.0.0",
     "redis": "^4.7.1",
     "verror": "^1.10.1"
