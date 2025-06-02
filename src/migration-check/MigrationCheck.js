@@ -342,7 +342,6 @@ function releasedEntityCheck(csnBuild, csnProd, whitelist, options) {
                 definitionProd.name,
                 elementProdName,
               );
-              return;
             }
           }
         }

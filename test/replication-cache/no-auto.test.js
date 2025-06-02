@@ -52,7 +52,11 @@ describe("No Auto", () => {
   });
 
   it("Get via service", async () => {
-    let response = await GET("/odata/v4/test/Books");
+    let response = await GET("/odata/v4/test/Books", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(100);
     for (const row of response.data.value) {
       expect(row.ID).toEqual(expect.any(Number));
@@ -73,7 +77,11 @@ describe("No Auto", () => {
     expect(tenant.cache.get("test.Books").status).toBe("READY");
     expect(tenant.cache.get("test.Books.texts").status).toBe("READY");
 
-    response = await GET("/odata/v4/test/Books");
+    response = await GET("/odata/v4/test/Books", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(100);
     for (const row of response.data.value) {
       expect(row.ID).toEqual(expect.any(Number));

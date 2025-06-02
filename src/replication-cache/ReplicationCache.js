@@ -490,7 +490,7 @@ class ReplicationCache {
   search(query) {
     let search = true;
     if (query.SELECT.search?.length > 0) {
-      const ref = query.target.name;
+      const ref = query._target.name;
       this.stats.search[ref] ??= 0;
       this.stats.search[ref]++;
       this.log.debug("Replication cache skipped for search", {
@@ -504,7 +504,7 @@ class ReplicationCache {
   localized(query, refs) {
     let localized = true;
     if (query.SELECT.localized) {
-      const ref = query.target.name;
+      const ref = query._target.name;
       this.stats.localized[ref] ??= 0;
       this.stats.localized[ref]++;
       this.log.debug("Replication cache not enabled for 'localized' without deploy feature", {
@@ -852,19 +852,20 @@ function fromRefs(model, query) {
       return refs;
     }, []);
   }
-  if (query.target) {
+  if (query._target) {
+    const target = model.definitions[query._target.name];
     if (query.SELECT.orderBy) {
-      refs = refs.concat(expressionRefs(model, query.target, query.SELECT.orderBy));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.orderBy));
     }
     if (query.SELECT.columns) {
-      refs = refs.concat(expressionRefs(model, query.target, query.SELECT.columns));
-      refs = refs.concat(expandRefs(model, query.target, query.SELECT.columns));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.columns));
+      refs = refs.concat(expandRefs(model, target, query.SELECT.columns));
     }
     if (query.SELECT.where) {
-      refs = refs.concat(expressionRefs(model, query.target, query.SELECT.where));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.where));
     }
     if (query.SELECT.having) {
-      refs = refs.concat(expressionRefs(model, query.target, query.SELECT.having));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.having));
     }
   }
   return refs;

@@ -19,7 +19,11 @@ describe("Search", () => {
   });
 
   it("Get via service - search", async () => {
-    const response = await GET("/odata/v4/test/Books?$search=test");
+    const response = await GET("/odata/v4/test/Books?$search=test", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(1);
     expect(cds.replicationCache.stats.used).toBe(0);
     expect(cds.replicationCache.stats.search["TestService.Books"]).toBe(1);

@@ -46,7 +46,11 @@ describe("No Deploy", () => {
   });
 
   it("Get via service - localized", async () => {
-    const response = await GET("/odata/v4/test/Books");
+    const response = await GET("/odata/v4/test/Books", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(100);
     expect(cds.replicationCache.stats.used).toBe(0);
     expect(cds.replicationCache.stats.localized["TestService.Books"]).toBe(1);

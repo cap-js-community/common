@@ -338,14 +338,22 @@ describe("Main", () => {
   });
 
   it("Get via service - from", async () => {
-    const response = await GET("/odata/v4/test/Books");
+    const response = await GET("/odata/v4/test/Books", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(100);
     expect(cds.replicationCache.stats.used).toBe(1);
     expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
   });
 
   it("Get via service - search", async () => {
-    const response = await GET("/odata/v4/test/Books?$search=test");
+    const response = await GET("/odata/v4/test/Books?$search=test", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(1);
     expect(cds.replicationCache.stats.used).toBe(1);
     expect(cds.replicationCache.stats.search["TestService.Books"]).toBeUndefined();
@@ -353,14 +361,22 @@ describe("Main", () => {
   });
 
   it("Get via service - navigation", async () => {
-    const response = await GET("/odata/v4/test/Books(1)/pages");
+    const response = await GET("/odata/v4/test/Books(1)/pages", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(5);
     expect(cds.replicationCache.stats.used).toBe(1);
     expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
   });
 
   it("Get via service - texts", async () => {
-    const response = await GET("/odata/v4/test/Books(1)/texts");
+    const response = await GET("/odata/v4/test/Books(1)/texts", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(2);
     expect(cds.replicationCache.stats.used).toBe(1);
     expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
@@ -368,7 +384,11 @@ describe("Main", () => {
   });
 
   it("Get via service - expand", async () => {
-    const response = await GET("/odata/v4/test/Books?$expand=author($select=name)");
+    const response = await GET("/odata/v4/test/Books?$expand=author($select=name)", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(100);
     for (const entry of response.data.value) {
       expect(entry.ID).toEqual(expect.any(Number));

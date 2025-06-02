@@ -883,6 +883,13 @@ extend entity Books {
           severity: "error",
           text: "The managed/unmanaged state of a released element cannot be changed: test.Dummy.managed",
         },
+        {
+          code: "ReleasedElementOnConditionCannotBeChanged",
+          element: "managed",
+          entity: "test.Dummy",
+          severity: "error",
+          text: "The ON condition of a released element cannot be changed: test.Dummy.managed",
+        },
       ],
       success: false,
     });
@@ -1104,6 +1111,13 @@ extend entity Books {
       }),
     ).toMatchObject({
       messages: [
+        {
+          code: "ReleasedElementManagedUnmanagedCannotBeChanged",
+          element: "managed",
+          entity: "test.Dummy",
+          severity: "error",
+          text: "The managed/unmanaged state of a released element cannot be changed: test.Dummy.managed",
+        },
         {
           code: "ReleasedElementCardinalityCannotBeChanged",
           element: "managed",

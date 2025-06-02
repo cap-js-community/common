@@ -41,14 +41,22 @@ describe("No wait", () => {
   });
 
   it("Get via service", async () => {
-    let response = await GET("/odata/v4/test/Books");
+    let response = await GET("/odata/v4/test/Books", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(100);
     expect(cds.replicationCache.stats.missed).toBe(1);
     expect(cds.replicationCache.stats.used).toBe(0);
     expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
 
     await cds.replicationCache.prepared(undefined, "test.Books");
-    response = await GET("/odata/v4/test/Books");
+    response = await GET("/odata/v4/test/Books", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(100);
     for (const row of response.data.value) {
       expect(row.ID).toEqual(expect.any(Number));

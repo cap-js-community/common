@@ -59,7 +59,11 @@ describe("TTL", () => {
 
   it("Get via service", async () => {
     cds.replicationCache.options.size = 50000;
-    let response = await GET("/odata/v4/test/Books");
+    let response = await GET("/odata/v4/test/Books", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(100);
     for (const row of response.data.value) {
       expect(row.ID).toEqual(expect.any(Number));
@@ -76,7 +80,11 @@ describe("TTL", () => {
     expect(tenant.cache.get("test.Books").status).toBe("OPEN");
     expect(tenant.cache.get("test.Books.texts").status).toBe("OPEN");
 
-    response = await GET("/odata/v4/test/Authors");
+    response = await GET("/odata/v4/test/Authors", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(100);
     for (const row of response.data.value) {
       expect(row.ID).toEqual(expect.any(Number));

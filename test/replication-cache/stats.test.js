@@ -52,7 +52,11 @@ describe("Stats", () => {
   });
 
   it("Get via service", async () => {
-    const response = await GET("/odata/v4/test/Books?$expand=author($select=name)");
+    const response = await GET("/odata/v4/test/Books?$expand=author($select=name)", {
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
     expect(response.data.value.length).toBe(100);
     for (const row of response.data.value) {
       expect(row.ID).toEqual(expect.any(Number));
