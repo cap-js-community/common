@@ -55,7 +55,7 @@
     "@sap/cds": "^9.0.2",
     "@sap/cds-common-content": "^3.0.1",
     "@sap/cds-dk": "^9.0.4",
-    "eslint": "9.28.0",
+    "eslint": "9.29.0",
     "eslint-config-prettier": "10.1.5",
     "eslint-plugin-jest": "28.13.5",
     "eslint-plugin-n": "^17.19.0",
