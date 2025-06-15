@@ -57,7 +57,7 @@
     "@sap/cds-dk": "^9.0.4",
     "eslint": "9.29.0",
     "eslint-config-prettier": "10.1.5",
-    "eslint-plugin-jest": "28.13.5",
+    "eslint-plugin-jest": "28.14.0",
     "eslint-plugin-n": "^17.19.0",
     "jest": "29.7.0",
     "jest-html-reporters": "3.1.7",
