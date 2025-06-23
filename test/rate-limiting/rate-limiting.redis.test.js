@@ -116,12 +116,12 @@ describe("Rate Limiting", () => {
         expect(err.response.headers["retry-after"]).toEqual("3600");
         expect(err.response.headers["date"]).toBeDefined();
       }
-      const date1 = rateLimiting.nextResetTime();
+      const date1 = await rateLimiting.nextResetTime();
       expect(date1).toBeDefined();
 
       await rateLimiting.clearAllInWindow();
 
-      const date2 = rateLimiting.nextResetTime();
+      const date2 = await rateLimiting.nextResetTime();
       expect(date2).toBeDefined();
       expect(date1).not.toEqual(date2);
 
