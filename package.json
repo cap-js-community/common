@@ -51,7 +51,7 @@
   },
   "devDependencies": {
     "@cap-js-community/common": "./",
-    "@cap-js/cds-test": "^0.3.0",
+    "@cap-js/cds-test": "^0.4.0",
     "@sap/cds": "^9.0.4",
     "@sap/cds-common-content": "^3.0.1",
     "@sap/cds-dk": "^9.0.5",
