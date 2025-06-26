@@ -875,25 +875,66 @@ function selectFromRefs(model, query) {
   return refs;
 }
 
+function selectFromAliases(model, query) {
+  let aliases = {};
+  if (query.SELECT.from.SELECT) {
+    // Sub-select aliases are not (yet) supported
+  } else if (query.SELECT.from.ref) {
+    const ref = resolveRef(model, query.SELECT.from.ref);
+    if (query.SELECT.from.as) {
+      aliases[query.SELECT.from.as] = ref;
+    } else {
+      const as = ref.split(".").pop();
+      aliases[as] = ref;
+    }
+  } else if ((query.SELECT.from.join || query.SELECT.from.SET) && query.SELECT.from.args) {
+    for (const arg of query.SELECT.from.args) {
+      const ref = resolveRef(model, arg.ref);
+      if (arg.as) {
+        aliases[arg.as] = ref;
+      } else {
+        const as = ref.split(".").pop();
+        aliases[as] = ref;
+      }
+    }
+  }
+  return aliases;
+}
+
 function selectRefs(model, query) {
   let refs = selectFromRefs(model, query);
+  const aliases = selectFromAliases(model, query);
   if (query._target) {
     const target = model.definitions[query._target.name];
     if (query.SELECT.orderBy) {
-      refs = refs.concat(expressionRefs(model, target, query.SELECT.orderBy, query.SELECT.mixin));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.orderBy, query.SELECT.mixin, aliases));
     }
     if (query.SELECT.columns) {
-      refs = refs.concat(expressionRefs(model, target, query.SELECT.columns, query.SELECT.mixin));
-      refs = refs.concat(expandRefs(model, target, query.SELECT.columns, query.SELECT.mixin));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.columns, query.SELECT.mixin, aliases));
+      refs = refs.concat(expandRefs(model, target, query.SELECT.columns, query.SELECT.mixin, aliases));
     }
     if (query.SELECT.where) {
-      refs = refs.concat(expressionRefs(model, target, query.SELECT.where, query.SELECT.mixin));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.where, query.SELECT.mixin, aliases));
     }
     if (query.SELECT.having) {
-      refs = refs.concat(expressionRefs(model, target, query.SELECT.having, query.SELECT.mixin));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.having, query.SELECT.mixin, aliases));
     }
   }
   return refs;
+}
+
+function resolveRef(model, refs) {
+  let ref = refs[0];
+  if (ref.id) {
+    ref = ref.id;
+  }
+  let current = model.definitions[ref];
+  for (const ref of refs.slice(1)) {
+    if (current.elements[ref].type === "cds.Association" || current.elements[ref].type === "cds.Composition") {
+      current = current.elements[ref]._target;
+    }
+  }
+  return current.name;
 }
 
 function resolveRefs(model, refs) {
@@ -917,17 +958,16 @@ function resolveRefs(model, refs) {
   return resolvedRefs;
 }
 
-function identifierRefs(model, definition, expressions, mixin) {
+function identifierRefs(model, definition, expressions, mixins, aliases) {
   let refs = [];
   for (const expression of expressions) {
     if (Array.isArray(expression.ref)) {
       let current = definition;
-      let currentMixin = mixin;
+      let currentMixins = mixins;
       for (const ref of expression.ref) {
-        const element = current.elements[ref] || currentMixin?.[ref];
-        if (element.type === "cds.Association" || element.type === "cds.Composition") {
-          current = model.definitions[element.target];
-          currentMixin = {};
+        current = target(model, current, currentMixins, aliases, ref);
+        if (current !== null) {
+          currentMixins = {};
           refs.push(current.name);
         }
       }
@@ -936,13 +976,13 @@ function identifierRefs(model, definition, expressions, mixin) {
   return refs;
 }
 
-function expressionRefs(model, definition, expressions, mixin) {
-  let refs = identifierRefs(model, definition, expressions, mixin);
+function expressionRefs(model, definition, expressions, mixins, aliases) {
+  let refs = identifierRefs(model, definition, expressions, mixins, aliases);
   for (const expression of expressions) {
     if (expression.xpr) {
-      refs = refs.concat(expressionRefs(model, definition, expression.xpr, mixin));
+      refs = refs.concat(expressionRefs(model, definition, expression.xpr, mixins, aliases));
     } else if (expression.args) {
-      refs = refs.concat(expressionRefs(model, definition, expression.args, mixin));
+      refs = refs.concat(expressionRefs(model, definition, expression.args, mixins, aliases));
     } else if (expression.SELECT) {
       refs = refs.concat(selectRefs(model, expression));
     }
@@ -950,22 +990,41 @@ function expressionRefs(model, definition, expressions, mixin) {
   return refs;
 }
 
-function expandRefs(model, definition, columns, mixin) {
+function expandRefs(model, definition, columns, mixins, aliases) {
   let refs = [];
   for (const column of columns) {
     if (Array.isArray(column.ref) && column.expand) {
       let current = definition;
-      let currentMixin = mixin;
+      let currentMixins = mixins;
       for (const ref of column.ref) {
-        const element = current.elements[ref] || currentMixin?.[ref];
-        current = model.definitions[element.target];
-        currentMixin = {};
+        current = target(model, current, currentMixins, aliases, ref);
+        currentMixins = {};
         refs.push(current.name);
       }
       refs = refs.concat(expandRefs(model, current, column.expand));
     }
   }
   return refs;
+}
+
+function target(model, entity, mixins, aliases, ref) {
+  if (aliases?.[ref]) {
+    return typeof aliases[ref] === "string" ? model.definitions[aliases[ref]] : aliases[ref];
+  }
+  if (entity.name.endsWith(`.${ref}`)) {
+    return entity;
+  }
+  const element = entity.elements[ref] || mixins?.[ref];
+  if (!element) {
+    cds.log(Component).warn("Reference not found in entity", {
+      entity: entity.name,
+      ref,
+    });
+  }
+  if (element.type === "cds.Association" || element.type === "cds.Composition") {
+    return model.definitions[element.target];
+  }
+  return null;
 }
 
 function staticRefs(model, refs) {

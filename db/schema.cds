@@ -33,9 +33,11 @@ entity Pages {
                       on quotes.page = $self;
 }
 
-entity PagesView as select from Pages mixin {
+entity PagesView as select from Pages as pages mixin {
     mixinBook    : Association to Books on ID = ID;
 } into {
+    pages.ID,
+    pages.no,
     *,
     mixinBook
 } where mixinBook.ID = ID;
