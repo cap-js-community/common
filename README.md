@@ -41,13 +41,14 @@ entity Books {
 
 ### Annotations
 
-Annotations can be used to enable replication cache for a service:
+Annotations can be used to enable replication cache for a service on entity level:
 
 - `@cds.replicate: Boolean | Object`: Enable replication cache for entity
   - `@cds.replicate.ttl: Number`: Time-To-Live (TTL) of cache entry in milliseconds
   - `@cds.replicate.auto: Boolean`: Replication is managed automatically
   - `@cds.replicate.preload: Boolean`: Preload replication for entity
   - `@cds.replicate.group: String`: Replication group name
+  - `@cds.replicate.static: Boolean`: Statically replicate non-tenant aware
 
 Defaults are taken from CDS environment.
 

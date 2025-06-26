@@ -28,6 +28,7 @@ const Status = {
 
 const Annotations = {
   Replicate: "@cds.replicate",
+  ReplicateStatic: "@cds.replicate.static",
   ReplicateGroup: "@cds.replicate.group",
   ReplicateAuto: "@cds.replicate.auto",
   ReplicateTTL: "@cds.replicate.ttl",
@@ -61,7 +62,7 @@ class ReplicationCache {
     });
     cds.on("connect", (service) => {
       if (service.name === this.name) {
-        const refs = ReplicationCache.replicationRefs(this.model, service);
+        const refs = ReplicationCache.replicationRefs(this.model, service, this.options.deploy);
         if (refs.length > 0) {
           this.setup(service, refs);
           this.log.info("using replication cache", {
@@ -82,12 +83,12 @@ class ReplicationCache {
     });
   }
 
-  static replicationRefs(model, service) {
+  static replicationRefs(model, service, deploy) {
     const refs = Object.keys(model.definitions).filter((name) => {
       const definition = model.definitions[name];
       return (
         definition.kind === "entity" &&
-        !definition.projection &&
+        (!(definition.query || definition.projection) || !deploy) &&
         (service.name === "db" || name.startsWith(`${service.name}.`)) &&
         Object.values(Annotations).find((annotation) => {
           return definition[annotation] !== undefined;
@@ -169,6 +170,14 @@ class ReplicationCache {
       if (!this.options.search && !this.search(req.query)) {
         return await next();
       }
+      let fromRefs = queryFromRefs(model, req.query);
+      if (this.options.deploy) {
+        fromRefs = baseRefs(model, fromRefs);
+        fromRefs = localizedRefs(model, req.query, fromRefs);
+      }
+      if (fromRefs.length === 0 || !this.relevant(fromRefs)) {
+        return await next();
+      }
       let refs = queryRefs(model, req.query);
       if (!this.options.deploy) {
         if (!this.localized(req.query, refs)) {
@@ -189,8 +198,12 @@ class ReplicationCache {
         this.stats.counts[ref] ??= 0;
         this.stats.counts[ref]++;
       }
+      let tenant = req.tenant;
+      if (staticRefs(model, refs)) {
+        tenant = undefined; // non-tenant cache
+      }
       const status = await this.load(
-        req.tenant,
+        tenant,
         refs,
         {
           auto: this.options.auto,
@@ -203,7 +216,7 @@ class ReplicationCache {
         this.stats.used++;
         this.stats.ratio = Math.round(this.stats.used / this.stats.hits);
         this.log.debug("Replication cache was used");
-        const db = this.cache.get(req.tenant).db;
+        const db = this.cache.get(tenant).db;
         if (this.options.measure) {
           return this.measure(
             async () => {
@@ -530,7 +543,7 @@ class ReplicationCache {
     let projections = true;
     for (const ref of refs) {
       const definition = model.definitions[ref];
-      if (definition.query) {
+      if (definition.query || definition.projection) {
         this.stats.projections[ref] ??= 0;
         this.stats.projections[ref]++;
         this.log.debug("Replication cache not enabled for 'projections' without deploy feature", {
@@ -833,17 +846,24 @@ function localizedRefs(model, query, refs) {
   return unique(refs.concat(localizedRefs));
 }
 
+function queryFromRefs(model, query) {
+  if (!query.SELECT) {
+    return [];
+  }
+  return unique(selectFromRefs(model, query));
+}
+
 function queryRefs(model, query) {
   if (!query.SELECT) {
     return [];
   }
-  return unique(fromRefs(model, query));
+  return unique(selectRefs(model, query));
 }
 
-function fromRefs(model, query) {
+function selectFromRefs(model, query) {
   let refs = [];
   if (query.SELECT.from.SELECT) {
-    refs = fromRefs(model, query.SELECT.from);
+    refs = selectFromRefs(model, query.SELECT.from);
   } else if (query.SELECT.from.ref) {
     refs = resolveRefs(model, query.SELECT.from.ref);
   } else if ((query.SELECT.from.join || query.SELECT.from.SET) && query.SELECT.from.args) {
@@ -852,20 +872,25 @@ function fromRefs(model, query) {
       return refs;
     }, []);
   }
+  return refs;
+}
+
+function selectRefs(model, query) {
+  let refs = selectFromRefs(model, query);
   if (query._target) {
     const target = model.definitions[query._target.name];
     if (query.SELECT.orderBy) {
-      refs = refs.concat(expressionRefs(model, target, query.SELECT.orderBy));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.orderBy, query.SELECT.mixin));
     }
     if (query.SELECT.columns) {
-      refs = refs.concat(expressionRefs(model, target, query.SELECT.columns));
-      refs = refs.concat(expandRefs(model, target, query.SELECT.columns));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.columns, query.SELECT.mixin));
+      refs = refs.concat(expandRefs(model, target, query.SELECT.columns, query.SELECT.mixin));
     }
     if (query.SELECT.where) {
-      refs = refs.concat(expressionRefs(model, target, query.SELECT.where));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.where, query.SELECT.mixin));
     }
     if (query.SELECT.having) {
-      refs = refs.concat(expressionRefs(model, target, query.SELECT.having));
+      refs = refs.concat(expressionRefs(model, target, query.SELECT.having, query.SELECT.mixin));
     }
   }
   return refs;
@@ -892,14 +917,17 @@ function resolveRefs(model, refs) {
   return resolvedRefs;
 }
 
-function identifierRefs(model, definition, array) {
+function identifierRefs(model, definition, expressions, mixin) {
   let refs = [];
-  for (const entry of array) {
-    if (Array.isArray(entry.ref)) {
+  for (const expression of expressions) {
+    if (Array.isArray(expression.ref)) {
       let current = definition;
-      for (const ref of entry.ref) {
-        if (current.elements[ref].type === "cds.Association" || current.elements[ref].type === "cds.Composition") {
-          current = current.elements[ref]._target;
+      let currentMixin = mixin;
+      for (const ref of expression.ref) {
+        const element = current.elements[ref] || currentMixin?.[ref];
+        if (element.type === "cds.Association" || element.type === "cds.Composition") {
+          current = model.definitions[element.target];
+          currentMixin = {};
           refs.push(current.name);
         }
       }
@@ -908,33 +936,45 @@ function identifierRefs(model, definition, array) {
   return refs;
 }
 
-function expressionRefs(model, definition, array) {
-  let refs = identifierRefs(model, definition, array);
-  for (const entry of array) {
-    if (entry.xpr) {
-      refs = refs.concat(expressionRefs(model, definition, entry.xpr));
-    } else if (entry.args) {
-      refs = refs.concat(expressionRefs(model, definition, entry.args));
-    } else if (entry.SELECT) {
-      refs = refs.concat(fromRefs(model, entry));
+function expressionRefs(model, definition, expressions, mixin) {
+  let refs = identifierRefs(model, definition, expressions, mixin);
+  for (const expression of expressions) {
+    if (expression.xpr) {
+      refs = refs.concat(expressionRefs(model, definition, expression.xpr, mixin));
+    } else if (expression.args) {
+      refs = refs.concat(expressionRefs(model, definition, expression.args, mixin));
+    } else if (expression.SELECT) {
+      refs = refs.concat(selectRefs(model, expression));
     }
   }
   return refs;
 }
 
-function expandRefs(model, definition, columns) {
+function expandRefs(model, definition, columns, mixin) {
   let refs = [];
   for (const column of columns) {
     if (Array.isArray(column.ref) && column.expand) {
       let current = definition;
+      let currentMixin = mixin;
       for (const ref of column.ref) {
-        current = current.elements[ref]._target;
+        const element = current.elements[ref] || currentMixin?.[ref];
+        current = model.definitions[element.target];
+        currentMixin = {};
         refs.push(current.name);
       }
       refs = refs.concat(expandRefs(model, current, column.expand));
     }
   }
   return refs;
+}
+
+function staticRefs(model, refs) {
+  for (const ref of refs) {
+    if (!model.definitions[ref][Annotations.ReplicateStatic]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function cached(cache, field, init) {

@@ -28,7 +28,7 @@ describe("Size", () => {
       }
       expect(cds.replicationCache.stats.used).toBe(1);
       expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
-      expect(await cds.replicationCache.tenantSize()).toBe(135168);
+      expect(await cds.replicationCache.tenantSize()).toBe(143360);
       expect(await cds.replicationCache.size()).toBe(24576);
       expect(await cds.replicationCache.size(undefined, "test.Books")).toBe(24576);
     });
@@ -46,7 +46,7 @@ describe("Size", () => {
       expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
       expect(cds.replicationCache.stats.counts["test.Authors"]).toBe(1);
       expect(cds.replicationCache.stats.counts["test.Pages"]).toBe(1);
-      expect(await cds.replicationCache.tenantSize()).toBe(290816);
+      expect(await cds.replicationCache.tenantSize()).toBe(299008);
       expect(await cds.replicationCache.size()).toBe(188416);
       expect(await cds.replicationCache.size(undefined, "test.Books")).toBe(24576);
       expect(await cds.replicationCache.size(undefined, "test.Authors")).toBe(20480);
@@ -68,7 +68,7 @@ describe("Size", () => {
     expect(cds.replicationCache.stats.used).toBe(1);
     expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
     expect(cds.replicationCache.stats.counts["test.Books.texts"]).toBe(1);
-    expect(await cds.replicationCache.tenantSize()).toBe(151552);
+    expect(await cds.replicationCache.tenantSize()).toBe(159744);
     expect(await cds.replicationCache.size()).toBe(45056);
     expect(await cds.replicationCache.size(undefined, "test.Books")).toBe(24576);
     expect(await cds.replicationCache.size(undefined, "test.Books.texts")).toBe(20480);

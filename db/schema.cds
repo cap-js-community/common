@@ -33,6 +33,17 @@ entity Pages {
                       on quotes.page = $self;
 }
 
+entity PagesView as select from Pages mixin {
+    mixinBook    : Association to Books on ID = ID;
+} into {
+    *,
+    mixinBook
+} where mixinBook.ID = ID;
+
+entity EnumView as select from Enum as enums join Books on 1 = 1 {
+    enums.*
+};
+
 @cds.replicate
 entity Authors : managed {
     key ID           : Integer;
@@ -50,6 +61,12 @@ entity Quotes {
         page : Association to Pages;
         line : Integer;
         text : String;
+}
+
+@cds.replicate.static
+entity Enum {
+    key name : String;
+        descr : String;
 }
 
 // entity annotation stub
