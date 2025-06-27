@@ -20,7 +20,8 @@
     "bin",
     "src",
     "LICENSE",
-    "cds-plugin.js"
+    "cds-plugin.js",
+    "CHANGELOG.md"
   ],
   "main": "index.js",
   "types": "index.d.ts",
