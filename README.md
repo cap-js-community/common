@@ -128,6 +128,7 @@ Options can be passed to migration check via CDS environment via `cds.migrationC
     }
   }
   ```
+
   - **Whitelist Entity Element**:
   ```json
   {
