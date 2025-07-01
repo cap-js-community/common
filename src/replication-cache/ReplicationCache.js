@@ -874,7 +874,7 @@ function selectFromRefs(model, query) {
       if (arg.ref) {
         refs = refs.concat(resolveRefs(model, arg.ref));
       } else if (arg.args) {
-        refs = refs.concat(selectFromRefs(model, { SELECT: { from: { args: arg.args} } }));
+        refs = refs.concat(selectFromRefs(model, { SELECT: { from: { args: arg.args } } }));
       }
       return refs;
     }, []);
@@ -892,7 +892,7 @@ function selectFromPrimaryRef(model, query) {
       if (arg.ref) {
         return resolveRef(model, arg.ref);
       } else if (arg.args) {
-        return selectFromPrimaryRef(model, { SELECT: { from: { args: arg.args} } });
+        return selectFromPrimaryRef(model, { SELECT: { from: { args: arg.args } } });
       }
     }
   } else if (query.SELECT.from.SELECT) {
@@ -929,7 +929,7 @@ function selectFromAliases(model, definition, query) {
         for (const subArg of arg.args) {
           aliases = {
             ...aliases,
-            ...selectFromAliases(model, definition, { SELECT: { from: { args: subArg.args} } }),
+            ...selectFromAliases(model, definition, { SELECT: { from: { args: subArg.args } } }),
           };
         }
       }
@@ -975,8 +975,8 @@ function selectRefs(model, definition, query, aliases) {
   }
   const outerAliases = {
     ...aliases,
-    ...selectOuterAliases(model, target, query.SELECT.columns, query.SELECT.mixin, aliases)
-  }
+    ...selectOuterAliases(model, target, query.SELECT.columns, query.SELECT.mixin, aliases),
+  };
   if (query.SELECT.having) {
     refs = refs.concat(expressionRefs(model, target, query.SELECT.having, query.SELECT.mixin, outerAliases));
   }
@@ -1050,10 +1050,12 @@ function expressionRefs(model, definition, expressions, mixins, aliases) {
     } else if (expression.args) {
       refs = refs.concat(expressionRefs(model, definition, expression.args, mixins, aliases));
     } else if (expression.SELECT) {
-      refs = refs.concat(selectRefs(model, undefined, expression, {
-        ...aliases,
-        ["$self"]: undefined
-      }));
+      refs = refs.concat(
+        selectRefs(model, undefined, expression, {
+          ...aliases,
+          ["$self"]: undefined,
+        }),
+      );
     }
   }
   return refs;
