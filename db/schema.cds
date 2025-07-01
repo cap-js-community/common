@@ -38,6 +38,7 @@ entity PagesView as select from Pages as pages mixin {
 } into {
     pages.ID,
     pages.no,
+    $self.ID as ID2,
     *,
     mixinBook
 } where mixinBook.ID = ID;
