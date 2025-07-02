@@ -73,10 +73,14 @@ class ReplicationCache {
             this.options?.credentials?.database &&
             this.options?.credentials?.database !== Constants.InMemory
           ) {
-            this.log.debug("Preparing replication cache template database");
-            this.template = createDB(Tenant.Template, this.model, this.options).catch((err) => {
-              this.log.error("Preparing replication cache failed", err);
-            });
+            this.log.info("Preparing replication cache template database");
+            this.template = createDB(Tenant.Template, this.model, this.options)
+              .then(() => {
+                this.log.info("Prepared replication cache template database");
+              })
+              .catch((err) => {
+                this.log.error("Preparing replication cache failed", err);
+              });
           }
         }
       }
@@ -220,9 +224,17 @@ class ReplicationCache {
         if (this.options.measure) {
           return this.measure(
             async () => {
-              return db.tx({ ...req.context }, async (tx) => {
-                return tx.run(req.query);
-              });
+              return db.tx(
+                {
+                  tenant: req.context.tenant,
+                  locale: req.context.locale,
+                  user: req.context.user,
+                  http: req.context.http,
+                },
+                async (tx) => {
+                  return tx.run(req.query);
+                },
+              );
             },
             async () => {
               await next();
@@ -779,7 +791,11 @@ async function createDB(tenant, model, options) {
   const db = new SQLiteService(tenant ?? Tenant.Default, model, {
     kind: "sqlite",
     impl: "@cap-js/sqlite",
-    credentials: { ...options.credentials, database: filePath },
+    multiTenant: false,
+    credentials: {
+      ...options.credentials,
+      database: filePath,
+    },
   });
   await db.init();
   if (options.deploy && (filePath === Constants.InMemory || tenant === Tenant.Template)) {
@@ -870,14 +886,17 @@ function selectFromRefs(model, query) {
   if (query.SELECT.from.ref) {
     refs = resolveRefs(model, query.SELECT.from.ref);
   } else if (query.SELECT.from.args) {
-    refs = query.SELECT.from.args.reduce((refs, arg) => {
+    for (const arg of query.SELECT.from.args) {
       if (arg.ref) {
         refs = refs.concat(resolveRefs(model, arg.ref));
       } else if (arg.args) {
         refs = refs.concat(selectFromRefs(model, { SELECT: { from: { args: arg.args } } }));
       }
-      return refs;
-    }, []);
+    }
+  } else if (query.SELECT.from.SET?.args) {
+    for (const arg of query.SELECT.from.SET.args) {
+      refs = refs.concat(selectFromRefs(model, arg));
+    }
   } else if (query.SELECT.from.SELECT) {
     refs = selectFromRefs(model, query.SELECT.from);
   }
@@ -895,6 +914,10 @@ function selectFromPrimaryRef(model, query) {
         return selectFromPrimaryRef(model, { SELECT: { from: { args: arg.args } } });
       }
     }
+  } else if (query.SELECT.from.SET?.args) {
+    for (const arg of query.SELECT.from.SET.args) {
+      return selectFromPrimaryRef(model, arg);
+    }
   } else if (query.SELECT.from.SELECT) {
     return selectFromPrimaryRef(model, query.SELECT.from);
   }
@@ -905,9 +928,7 @@ function selectFromAliases(model, definition, query) {
   if (definition?.name) {
     aliases["$self"] = definition.name;
   }
-  if (query.SELECT.from.SELECT) {
-    // Sub-select aliases are not (yet) supported
-  } else if (query.SELECT.from.ref) {
+  if (query.SELECT.from.ref) {
     const ref = resolveRef(model, query.SELECT.from.ref);
     if (query.SELECT.from.as) {
       aliases[query.SELECT.from.as] = ref;
@@ -926,14 +947,24 @@ function selectFromAliases(model, definition, query) {
           aliases[as] = ref;
         }
       } else if (arg.args) {
-        for (const subArg of arg.args) {
-          aliases = {
-            ...aliases,
-            ...selectFromAliases(model, definition, { SELECT: { from: { args: subArg.args } } }),
-          };
-        }
+        aliases = {
+          ...aliases,
+          ...selectFromAliases(model, definition, { SELECT: { from: { args: arg.args } } }),
+        };
       }
     }
+  } else if (query.SELECT.from.SET?.args) {
+    for (const arg of query.SELECT.from.SET.args) {
+      aliases = {
+        ...aliases,
+        ...selectFromAliases(model, definition, arg),
+      };
+    }
+  } else if (query.SELECT.from.SELECT) {
+    aliases = {
+      ...aliases,
+      ...selectFromAliases(model, definition, query.SELECT.from),
+    };
   }
   return aliases;
 }
