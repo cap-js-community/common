@@ -597,6 +597,7 @@ class ReplicationCacheEntry {
     this.db = tenant.db;
     this.ref = ref;
     this.definition = this.csn[ref];
+    this.static = !!this.definition[Annotations.ReplicateStatic];
     this.preload = this.cache.options.preload && this.definition[Annotations.ReplicatePreload];
     this.name = this.definition.name.replace(/\./gi, "_");
     this.status = Status.New;
@@ -626,13 +627,15 @@ class ReplicationCacheEntry {
             await this.load(thread);
             this.status = Status.Ready;
             this.failures = 0;
-            this.timeout = setTimeout(async () => {
-              this.cache.log.debug("Replication cache ref TTL reached", {
-                tenant: this.tenant.id,
-                ref: this.ref,
-              });
-              await this.clear(true);
-            }, this.ttl).unref();
+            if (this.ttl > 0 && !this.static) {
+              this.timeout = setTimeout(async () => {
+                this.cache.log.debug("Replication cache ref TTL reached", {
+                  tenant: this.tenant.id,
+                  ref: this.ref,
+                });
+                await this.clear(true);
+              }, this.ttl).unref();
+            }
           }
           this.cache.log.debug("Preparing replication cache ref finished", {
             tenant: this.tenant.id,

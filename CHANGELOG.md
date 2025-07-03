@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Multi-tenancy fixes
 - Improve reference detection
+- Deactivate TTL for negative value and static entities
 
 ## Version 0.2.3 - 2025-07-01
 
