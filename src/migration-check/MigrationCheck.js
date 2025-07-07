@@ -652,6 +652,7 @@ function normalizeType(csn, type) {
   return typeof type === "object" ? JSON.stringify(type) : type;
 }
 
-const hash = (buffer, algorithm = "sha256") => crypto.createHash(algorithm).update(buffer).digest("hex");
+const hash = (buffer, algorithm = "sha256") =>
+  crypto.createHash(algorithm).update(buffer.toString().replace(/\r\n/g, "\n")).digest("hex");
 
 module.exports = MigrationCheck;

@@ -19,11 +19,11 @@ describe("Migration Check", () => {
   function cleanup() {
     const genPath = path.join(process.cwd(), "gen");
     if (fs.existsSync(genPath)) {
-      fs.rmdirSync(genPath, { recursive: true });
+      fs.rmSync(genPath, { recursive: true });
     }
     const migrationPath = path.join(process.cwd(), cds.env.migrationCheck.baseDir);
     if (fs.existsSync(migrationPath)) {
-      fs.rmdirSync(migrationPath, { recursive: true });
+      fs.rmSync(migrationPath, { recursive: true });
     }
   }
 
