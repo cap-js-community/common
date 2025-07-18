@@ -65,6 +65,7 @@ Options can be passed to replication cache via CDS environment via `cds.replicat
 - `check: Number`: Interval to check size and prune. Default is `60000` (1 minute)
 - `stats: Number`: Interval to log statistics. Default is `300000` (5 minutes)
 - `size: Number`: Maximal cache size in bytes. Default is `10485760` (10 MB) and in production: `104857600` (100 MB)
+- `pipe: Boolean`: Replication is streamed through pipeline. `chunks` is not used. Default is `true`
 - `chunks: Number`: Replication chunk size. Default is `1000`
 - `retries: Number`: Replication retries for failed replications. Default is `3`
 - `auto: Boolean`: Replication is managed automatically. Default is `true`
@@ -96,6 +97,9 @@ Replication cache is inactive per default for tests (`test` profile). It can be 
 
 ## Migration Check
 
+The migration check allows to check for incompatible changes in the CDS model and
+to maintain a whitelist for compatible changes via `cdsmc` command line tool.
+
 ### Options
 
 Options can be passed to migration check via CDS environment via `cds.migrationCheck` section:
@@ -106,21 +110,76 @@ Options can be passed to migration check via CDS environment via `cds.migrationC
 - `keep: Boolean`: Keeps whitelist after update, otherwise whitelist is cleared. Default is `false`
 - `freeze: Boolean`: Freeze the persistence. Event compatible changes are not allowed, Default is `false`
 - `label: String`: Label to describe the updated hash files in addition to the timestamp. Default is `""`
-- `buildPath: String`: Path to the build CSN. If not specified it derived from CAP project type. Default is `null`
+- `buildPath: String`: Path to the build CSN. If not specified it is derived from CAP project type. Default is `null`
 - `adminHash: String`: Specify admin hash to acknowledge incompatible changes. Default is `null`
 
 ### Usage
 
-#### Basic Flow
+#### Build Production CSN
+
+Production CSN is built for first time when not existing (otherwise it is updated):
 
 - Build CSN: `cds build --production`
-- Check migrations: `cdsmc`
 - Update Production CSN: `cdsmc -u`
+
+> Production CSN MUST be added to version control.
+
+#### Migration Check
+
+Migration check is used to check for incompatible changes in a repetitive way along development:
+
+- Build CSN: `cds build --production`
+- Check Changes: `cdsmc`
+
+Incompatible changes are detected and reported as error.
+Compatible changes need to be whitelisted (can be disabled via options).
+
+##### Checks
+
+**Incompatible Changes:**
+
+- A released entity cannot be removed (`ReleasedEntityCannotBeRemoved`)
+- The draft enablement state of a released entity cannot be changed (`ReleasedEntityDraftEnablementCannotBeChanged`)
+- A released element cannot be removed (`ReleasedElementCannotBeRemoved`)
+- The key of a released element cannot be changed (`ReleasedElementKeyCannotBeChanged`)
+- The managed/unmanaged state of a released element cannot be changed (`ReleasedElementManagedUnmanagedCannotBeChanged`)
+- The virtual state of a released element cannot be changed (`ReleasedElementVirtualCannotBeChanged`)
+- The localization state of a released element cannot be changed (`ReleasedElementLocalizationCannotBeChanged`)
+- A released element cannot be changed to not-nullable (`ReleasedElementNullableCannotBeChanged`)
+- The data type of a released element cannot be changed (`ReleasedElementTypeCannotBeChanged`)
+- The data type of a released element cannot be shortened (`ReleasedElementTypeCannotBeShortened`)
+- The scale or precision of a released element cannot be reduced (`ReleasedElementScalePrecisionCannotBeLower`)
+- The target of a released element cannot be changed (`ReleasedElementTargetCannotBeChanged`)
+- The cardinality of a released element cannot be changed (`ReleasedElementCardinalityCannotBeChanged`)
+- The ON condition of a released element cannot be changed (`ReleasedElementOnConditionCannotBeChanged`)
+- The keys condition of a released element cannot be changed (`ReleasedElementKeysConditionCannotBeChanged`)
+- Enabling journal mode and changing entity in same cycle is not allowed (`ReleasedEntityJournalModeAndEntityChangeIsNotAllowed`)
+- Changes to the index of a released entity are not allowed (`ReleasedEntityIndexChangeIsNotAllowed`)
+
+**Compatible Changes:**
+
+- Changes to the index of a released entity must be whitelisted (`ReleasedEntityIndexChangeIsNotWhitelisted`)
+- Extending the type of a released element requires whitelisting (`ReleasedElementTypeExtensionIsNotWhitelisted`)
+- Extending the scale or precision of a released element requires whitelisting (`ReleasedElementScalePrecisionExtensionIsNotWhitelisted`)
+- The new entity is not whitelisted (`NewEntityIsNotWhitelisted`)
+- The new entity element is not whitelisted (`NewEntityElementIsNotWhitelisted`)
+- A new entity element must have a default value if it is not nullable (`NewEntityElementNotNullableDefault`)
+- The new entity index is not whitelisted (`NewEntityIndexIsNotWhitelisted`)
+
+#### Update Production CSN
+
+The Production CSN can be updated when no migration check errors occur:
+
+- Build CSN: `cds build --production`
+- Update Production CSN: `cdsmc -u`
+
+> Production CSN MUST be added to version control.
 
 ### Whitelisting
 
-- Maintain the whitelist extension file `migration-extension-whitelist.json` for compatible changes:
-  - **Whitelist Entity**:
+Maintain the whitelist extension file `migration-extension-whitelist.json` for compatible changes:
+
+- **Whitelist Entity**:
 
   ```json
   {
@@ -130,7 +189,7 @@ Options can be passed to migration check via CDS environment via `cds.migrationC
   }
   ```
 
-  - **Whitelist Entity Element**:
+- **Whitelist Entity Element**:
 
   ```json
   {
@@ -146,17 +205,34 @@ Options can be passed to migration check via CDS environment via `cds.migrationC
 
 ### Admin Mode
 
-- Get Admin Hash: `cdsmc -a`
-- (Un-)Freeze Persistence (based on options): `cdsmc -u -a`
+#### Incompatible Changes
+
+Accepted incompatible changes can be acknowledged and will not be reported as error anymore:
+
+- Get current admin hash for incompatible changes: `cdsmc -a`
+- Set admin hash in env: `cds.migrationCheck.adminHash`
+
+#### Freeze Persistence
+
+CDS persistence can be (temporarily) frozen to prevent any changes (also compatible) to the persistence model:
+
+- Activate/Deactivate persistence freeze in env `cds.migrationCheck.freeze`
+- Freeze/Unfreeze Persistence: `cdsmc -u -a`
+  - File `./csn-prod.freeze` is created to indicate that persistence is frozen
 
 ### Pipeline
 
-- Build & Check: `cds build --production && cdsmc`
-- Update Production CSN: `cdsmc -u`
+Migration check can be used in a pipeline (e.g. part of Pull Request voter)
+to ensure that incompatible changes are not introduced:
 
-> Production CSN MUST be added to version control
+- Build & Check: `cds build --production && cdsmc`
+- Update Production CSN: `cds build --production && cdsmc -u`
+
+> Production CSN MUST be added to version control.
 
 ## Rate Limiting
+
+The rate limiting allows to limit the number of requests per service and tenant.
 
 ### Usage
 

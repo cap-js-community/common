@@ -696,20 +696,38 @@ class ReplicationCacheEntry {
     if (thread && cds.context && this.service instanceof SQLiteService) {
       const srcTx = this.service.tx(cds.context);
       await this.db.tx({ tenant: this.tenant.id }, async (destTx) => {
-        await this.loadChunked(srcTx, destTx);
+        await this.loadRecords(srcTx, destTx);
         await this.checkRecords(srcTx, destTx);
         await this.calcSize(destTx);
       });
     } else {
       await this.service.tx({ tenant: this.tenant.id }, async (srcTx) => {
         await this.db.tx({ tenant: this.tenant.id }, async (destTx) => {
-          await this.loadChunked(srcTx, destTx);
+          await this.loadRecords(srcTx, destTx);
           await this.checkRecords(srcTx, destTx);
           await this.calcSize(destTx);
         });
       });
     }
     this.timestamp = Date.now();
+  }
+
+  async loadRecords(srcTx, destTx) {
+    if (this.cache.options.pipe) {
+      await this.loadPiped(srcTx, destTx);
+    } else {
+      await this.loadChunked(srcTx, destTx);
+    }
+  }
+
+  async loadPiped(srcTx, destTx) {
+    const keys = Object.keys(this.definition.keys);
+    const selectQuery = SELECT.from(this.definition).orderBy(keys);
+    selectQuery.replication = true;
+    selectQuery.bind(srcTx);
+    const insertQuery = INSERT.into(this.definition);
+    insertQuery.bind(destTx);
+    await selectQuery.pipeline(insertQuery);
   }
 
   async loadChunked(srcTx, destTx) {
