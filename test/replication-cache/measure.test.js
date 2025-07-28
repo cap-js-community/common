@@ -34,7 +34,9 @@ describe("Measure", () => {
       expect(cds.replicationCache.stats.measureTotal).toEqual(expect.any(Number));
       expect(cds.replicationCache.stats.measureRatio).toEqual(expect.any(Number));
       expect(log.output).toEqual(
-        expect.stringMatching(/\[replicationCache] - Replication cache measurement \S* \S* \S*/s),
+        expect.stringMatching(
+          /\[replicationCache] - Replication cache measurement\s*\{\s*timeCache:\s*[\d.]+,\s*timeService:\s*[\d.]+,\s*savedPercent:\s*-?\d+\s*}/s,
+        ),
       );
     });
   });
@@ -55,7 +57,9 @@ describe("Measure", () => {
     expect(cds.replicationCache.stats.measureTotal).toEqual(expect.any(Number));
     expect(cds.replicationCache.stats.measureRatio).toEqual(expect.any(Number));
     expect(log.output).toEqual(
-      expect.stringMatching(/\[replicationCache] - Replication cache measurement \S* \S* \S*/s),
+      expect.stringMatching(
+        /\[replicationCache] - Replication cache measurement\s*\{\s*timeCache:\s*[\d.]+,\s*timeService:\s*[\d.]+,\s*savedPercent:\s*-?\d+\s*}/s,
+      ),
     );
   });
 });

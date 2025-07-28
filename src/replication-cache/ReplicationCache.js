@@ -492,9 +492,13 @@ class ReplicationCache {
         return result;
       })(),
     ]);
-    const percent = ((timeService - timeCache) / timeService) * 100;
-    this.log.info("Replication cache measurement", Math.round(percent), timeCache, timeService);
-    this.stats.measureTotal += percent;
+    const savedPercent = ((timeService - timeCache) / timeService) * 100;
+    this.log.info("Replication cache measurement", {
+      timeCache,
+      timeService,
+      savedPercent: Math.round(savedPercent),
+    });
+    this.stats.measureTotal += savedPercent;
     this.stats.measureCount += 1;
     this.stats.measureRatio = Math.round(this.stats.measureTotal / this.stats.measureCount);
     return cacheResult;
