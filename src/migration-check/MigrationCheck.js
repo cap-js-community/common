@@ -32,6 +32,8 @@ const Messages = {
   ReleasedElementTypeExtensionIsNotWhitelisted: "Extending the type of a released element requires whitelisting",
   ReleasedElementScalePrecisionExtensionIsNotWhitelisted:
     "Extending the scale or precision of a released element requires whitelisting",
+  ReleasedElementCompatibleTypeChangeIsNotWhitelisted:
+    "Changing the type of a released element to a compatible type requires whitelisting",
 
   NewEntityIsNotWhitelisted: "The new entity is not whitelisted",
   NewEntityElementIsNotWhitelisted: "The new entity element is not whitelisted",
@@ -60,6 +62,7 @@ class MigrationCheck {
       prodHashPath: path.join(basePath, "./csn-prod-hash.json"),
       prodWhitelistPath: path.join(basePath, "./migration-extension-whitelist.json"),
       prodWhitelistHashPath: path.join(basePath, "./migration-extension-whitelist-hash.json"),
+      prodAdminChangesPath: path.join(basePath, "./migration-admin-changes.json"),
       prodFreeze: path.join(basePath, "./csn-prod.freeze"),
     };
     this.setup();
@@ -366,7 +369,20 @@ function releasedEntityCheck(csnBuild, csnProd, whitelist, options) {
         } else if (!elementProd.notNull && elementBuild.notNull) {
           report(messages, MessagesCodes.ReleasedElementNullableCannotBeChanged, definitionProd.name, elementProdName);
         } else if (normalizeType(csnProd, elementProd.type) !== normalizeType(csnBuild, elementBuild.type)) {
-          report(messages, MessagesCodes.ReleasedElementTypeCannotBeChanged, definitionProd.name, elementProdName);
+          const prodType = normalizeType(csnProd, elementProd.type);
+          const buildType = normalizeType(csnBuild, elementBuild.type);
+          if (prodType === "cds.String" && buildType === "cds.LargeString") {
+            if (!elementWhitelist && options.whitelist) {
+              report(
+                messages,
+                MessagesCodes.ReleasedElementCompatibleTypeChangeIsNotWhitelisted,
+                definitionProd.name,
+                elementProdName,
+              );
+            }
+          } else {
+            report(messages, MessagesCodes.ReleasedElementTypeCannotBeChanged, definitionProd.name, elementProdName);
+          }
         } else if ((elementProd.length || STRING_DEFAULT_LENGTH) > (elementBuild.length || STRING_DEFAULT_LENGTH)) {
           report(messages, MessagesCodes.ReleasedElementTypeCannotBeShortened, definitionProd.name, elementProdName);
         } else if ((elementProd.length || STRING_DEFAULT_LENGTH) < (elementBuild.length || STRING_DEFAULT_LENGTH)) {

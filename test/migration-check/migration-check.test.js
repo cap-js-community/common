@@ -1081,6 +1081,46 @@ extend entity Books {
     });
   });
 
+  it("Validate - ReleasedElementCompatibleTypeChangeIsNotWhitelisted", async () => {
+    expect(
+      validateModification((schema) => {
+        return {
+          schema: schema.replace("released : String;", "released : LargeString;"),
+        };
+      }),
+    ).toMatchObject({
+      messages: [
+        {
+          code: "ReleasedElementCompatibleTypeChangeIsNotWhitelisted",
+          element: "released",
+          entity: "test.Dummy",
+          severity: "error",
+          text: "Changing the type of a released element to a compatible type requires whitelisting: test.Dummy.released",
+        },
+      ],
+      success: false,
+    });
+    expect(
+      validateModification(
+        (schema) => {
+          return {
+            schema: schema.replace("released : String;", "released : LargeString;"),
+          };
+        },
+        {
+          "test.Dummy": {
+            elements: {
+              released: {},
+            },
+          },
+        },
+      ),
+    ).toMatchObject({
+      messages: [],
+      success: true,
+    });
+  });
+
   it("Validate - ReleasedElementTargetCannotBeChanged", async () => {
     expect(
       validateModification((schema) => {

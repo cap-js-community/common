@@ -161,6 +161,7 @@ Compatible changes need to be whitelisted (can be disabled via options).
 - Changes to the index of a released entity must be whitelisted (`ReleasedEntityIndexChangeIsNotWhitelisted`)
 - Extending the type of a released element requires whitelisting (`ReleasedElementTypeExtensionIsNotWhitelisted`)
 - Extending the scale or precision of a released element requires whitelisting (`ReleasedElementScalePrecisionExtensionIsNotWhitelisted`)
+- Changing the type of a released element to a compatible type requires whitelisting (`ReleasedElementTypeChangeIsNotWhitelisted`)
 - The new entity is not whitelisted (`NewEntityIsNotWhitelisted`)
 - The new entity element is not whitelisted (`NewEntityElementIsNotWhitelisted`)
 - A new entity element must have a default value if it is not nullable (`NewEntityElementNotNullableDefault`)
