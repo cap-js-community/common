@@ -62,7 +62,7 @@ class MigrationCheck {
       prodHashPath: path.join(basePath, "./csn-prod-hash.json"),
       prodWhitelistPath: path.join(basePath, "./migration-extension-whitelist.json"),
       prodWhitelistHashPath: path.join(basePath, "./migration-extension-whitelist-hash.json"),
-      prodAdminChangesPath: path.join(basePath, "./migration-admin-changes.json"),
+      prodAdminChangesPath: path.join(basePath, "./migration-admin-changes.txt"),
       prodFreeze: path.join(basePath, "./csn-prod.freeze"),
     };
     this.setup();
@@ -207,6 +207,7 @@ class MigrationCheck {
       }
       if (this.options.adminHash) {
         if (this.options.adminHash === messageHash) {
+          // TODO: Check changes in file prodAdminChangesPath, if not existing, then create it
           for (const message of result.messages) {
             message.severity = message.severity === "error" ? "warning" : message.severity;
           }
