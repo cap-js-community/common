@@ -105,13 +105,14 @@ to maintain a whitelist for compatible changes via `cdsmc` command line tool.
 Options can be passed to migration check via CDS environment via `cds.migrationCheck` section:
 
 - `baseDir: String`: Specifies the base directory for migration check. Default is `"migration-check"`
-- `whitelist: Boolean`: Requires to maintain a whitelist for compatible changes. Default is `true`
-- `checkMtx: Boolean`: Includes CDS MTXS persistence into check. Default is `true`
+- `whitelist: Boolean`: Requires maintaining a whitelist for compatible changes. Default is `true`
+- `checkMtx: Boolean`: Includes CDS MTXS persistence in check. Default is `true`
 - `keep: Boolean`: Keeps whitelist after update, otherwise whitelist is cleared. Default is `false`
 - `freeze: Boolean`: Freeze the persistence. Event compatible changes are not allowed, Default is `false`
 - `label: String`: Label to describe the updated hash files in addition to the timestamp. Default is `""`
-- `buildPath: String`: Path to the build CSN. If not specified it is derived from CAP project type. Default is `null`
+- `buildPath: String`: Path to the build CSN. If not specified, it is derived from the CAP project type. Default is `null`
 - `adminHash: String`: Specify admin hash to acknowledge incompatible changes. Default is `null`
+- `adminTracking: Boolean`: Track changes acknowledged by admin in an admin changes file. Default is `true`
 
 ### Usage
 

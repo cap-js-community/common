@@ -62,7 +62,7 @@ class MigrationCheck {
       prodHashPath: path.join(basePath, "./csn-prod-hash.json"),
       prodWhitelistPath: path.join(basePath, "./migration-extension-whitelist.json"),
       prodWhitelistHashPath: path.join(basePath, "./migration-extension-whitelist-hash.json"),
-      prodAdminChangesPath: path.join(basePath, "./migration-admin-changes.txt"),
+      prodAdminChangesPath: path.join(basePath, "./migration-admin-changes.json"),
       prodFreeze: path.join(basePath, "./csn-prod.freeze"),
     };
     this.setup();
@@ -207,9 +207,11 @@ class MigrationCheck {
       }
       if (this.options.adminHash) {
         if (this.options.adminHash === messageHash) {
-          // TODO: Check changes in file prodAdminChangesPath, if not existing, then create it
           for (const message of result.messages) {
             message.severity = message.severity === "error" ? "warning" : message.severity;
+          }
+          if (this.options.adminTracking) {
+            fs.writeFileSync(this.paths.prodAdminChangesPath, JSON.stringify(messages, null, 2) + "\n");
           }
           messages.push({
             code: "AcceptedByAdmin",
@@ -218,6 +220,9 @@ class MigrationCheck {
           });
           result.success = true;
         } else {
+          if (this.options.adminTracking) {
+            fs.writeFileSync(this.paths.prodAdminChangesPath, JSON.stringify(messages, null, 2) + "\n");
+          }
           messages.push({
             code: "AdminHashInvalid",
             text: "Admin hash is not valid for current migration check state",
@@ -228,6 +233,9 @@ class MigrationCheck {
       } else {
         result.success = false;
       }
+    }
+    if (!this.options.adminHash && fs.existsSync(this.paths.prodAdminChangesPath)) {
+      fs.rmSync(this.paths.prodAdminChangesPath);
     }
     return result;
   }

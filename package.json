@@ -82,7 +82,8 @@
       "freeze": false,
       "label": null,
       "buildPath": null,
-      "adminHash": null
+      "adminHash": null,
+      "adminTracking": true
     },
     "rateLimiting": {
       "plugin": true,

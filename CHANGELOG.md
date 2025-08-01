@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- Migration Check `ReleasedElementTypeChangeIsNotWhitelisted`
+- Migration Check `ReleasedElementCompatibleTypeChangeIsNotWhitelisted` to whitelist compatible type changes
+- Admin tracking writes an admin changes file to keep track of incompatible changes as well
 
 ## Version 0.2.5 - 2025-07-07
 

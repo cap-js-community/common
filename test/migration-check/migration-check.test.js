@@ -431,6 +431,12 @@ extend entity Books {
       ],
       success: false,
     });
+    const migrationAdminChanges = path.join(
+      process.cwd(),
+      cds.env.migrationCheck.baseDir,
+      "migration-admin-changes.json",
+    );
+    expect(fs.existsSync(migrationAdminChanges)).toBe(false);
     expect(result.adminHash).toBeDefined();
     migrationCheck.options.adminHash = result.adminHash;
     result = migrationCheck.check(true);
@@ -458,6 +464,23 @@ extend entity Books {
       ],
       success: true,
     });
+    expect(fs.existsSync(migrationAdminChanges)).toBe(true);
+    expect(JSON.parse(fs.readFileSync(migrationAdminChanges))).toMatchObject([
+      {
+        code: "ReleasedElementTypeCannotBeShortened",
+        element: "title",
+        entity: "test.Books",
+        severity: "warning",
+        text: "The data type of a released element cannot be shortened: test.Books.title",
+      },
+      {
+        code: "ReleasedElementTypeCannotBeShortened",
+        element: "title",
+        entity: "test.Books.texts",
+        severity: "warning",
+        text: "The data type of a released element cannot be shortened: test.Books.texts.title",
+      },
+    ]);
     migrationCheck.options.adminHash = "XXX";
     result = migrationCheck.check(true);
     delete migrationCheck.options.adminHash;
@@ -485,6 +508,46 @@ extend entity Books {
       ],
       success: false,
     });
+    expect(fs.existsSync(migrationAdminChanges)).toBe(true);
+    expect(JSON.parse(fs.readFileSync(migrationAdminChanges))).toMatchObject([
+      {
+        code: "ReleasedElementTypeCannotBeShortened",
+        element: "title",
+        entity: "test.Books",
+        severity: "error",
+        text: "The data type of a released element cannot be shortened: test.Books.title",
+      },
+      {
+        code: "ReleasedElementTypeCannotBeShortened",
+        element: "title",
+        entity: "test.Books.texts",
+        severity: "error",
+        text: "The data type of a released element cannot be shortened: test.Books.texts.title",
+      },
+    ]);
+    migrationCheck.options.adminHash = "";
+    result = migrationCheck.check(true);
+    delete migrationCheck.options.adminHash;
+    expect(result).toMatchObject({
+      messages: [
+        {
+          code: "ReleasedElementTypeCannotBeShortened",
+          element: "title",
+          entity: "test.Books",
+          severity: "error",
+          text: "The data type of a released element cannot be shortened: test.Books.title",
+        },
+        {
+          code: "ReleasedElementTypeCannotBeShortened",
+          element: "title",
+          entity: "test.Books.texts",
+          severity: "error",
+          text: "The data type of a released element cannot be shortened: test.Books.texts.title",
+        },
+      ],
+      success: false,
+    });
+    expect(fs.existsSync(migrationAdminChanges)).toBe(false);
   });
 
   it("Update - No build CSN", async () => {
