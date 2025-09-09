@@ -178,21 +178,21 @@ class RateLimiting {
       this.log.error("Adding rate limit headers failed", err);
     }
     if (status.exceeds?.inWindow) {
-      req.warn({
+      req.error({
         code: "TOO_MANY_REQUESTS",
         status: 429,
         statusCode: 429,
         message: `Too many requests in time window (max ${this.maxInWindow}), please try again later.`,
       });
     } else if (status.exceeds?.concurrent) {
-      req.warn({
+      req.error({
         code: "TOO_MANY_REQUESTS",
         status: 429,
         statusCode: 429,
         message: `Too many concurrent requests (max ${this.maxConcurrent}), please try again later.`,
       });
     } else {
-      req.warn({
+      req.error({
         code: "TOO_MANY_REQUESTS",
         status: 429,
         statusCode: 429,
