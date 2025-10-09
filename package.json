@@ -55,7 +55,7 @@
     "@cap-js/cds-test": "^0.4.0",
     "@sap/cds": "^9.4.2",
     "@sap/cds-common-content": "^3.0.1",
-    "@sap/cds-dk": "^9.3.2",
+    "@sap/cds-dk": "^9.4.1",
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jest": "^29.0.1",
