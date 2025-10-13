@@ -2,8 +2,8 @@
 
 name: Publish
 permissions:
-  contents: write
-  pull-requests: write
+  id-token: write
+  contents: read
 
 on:
   release:
@@ -23,5 +23,3 @@ jobs:
       - run: npm test
       - run: npm run lint:ci
       - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
