@@ -5,11 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## Version 0.2.9 - 2025-11-xx
+## Version 0.3.0 - 2025-11-xx
 
 ### Fixed
 
-- tbd
+- Refactor replication cache
+- Change `@cap-js/sqlite` to dev dependency
+- Replication cache requires `@cap-js/sqlite` as project dependency (no dev dependency)
 
 ## Version 0.2.8 - 2025-10-13
 

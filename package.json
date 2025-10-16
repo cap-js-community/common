@@ -1,6 +1,6 @@
 {
   "name": "@cap-js-community/common",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "description": "CAP Node.js Community Common",
   "homepage": "https://cap.cloud.sap/",
   "engines": {
@@ -45,7 +45,6 @@
     "audit": "npm audit --only=prod"
   },
   "dependencies": {
-    "@cap-js/sqlite": "^2.0.3",
     "commander": "^14.0.1",
     "redis": "^4.7.1",
     "verror": "^1.10.1"
@@ -53,6 +52,7 @@
   "devDependencies": {
     "@cap-js-community/common": "./",
     "@cap-js/cds-test": "^0.4.0",
+    "@cap-js/sqlite": "^2.0.3",
     "@sap/cds": "^9.4.3",
     "@sap/cds-common-content": "^3.0.1",
     "@sap/cds-dk": "^9.4.1",

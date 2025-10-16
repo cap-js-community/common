@@ -27,11 +27,11 @@ describe("Static", () => {
       }
       expect(cds.replicationCache.stats.used).toBe(1);
       expect(cds.replicationCache.stats.counts["test.Enum"]).toBe(1);
-      expect(cds.replicationCache.cache.get(undefined)).toBeDefined();
-      expect(cds.replicationCache.cache.get("t1")).not.toBeDefined();
+      expect(cds.replicationCache.entries.get(undefined)).toBeDefined();
+      expect(cds.replicationCache.entries.get("t1")).not.toBeDefined();
 
       result = await tx.run(SELECT.from("test.EnumView", ["name", "descr"]));
-      expect(cds.replicationCache.cache.get("t1")).toBeDefined();
+      expect(cds.replicationCache.entries.get("t1")).toBeDefined();
     });
   });
 

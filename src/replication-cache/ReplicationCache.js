@@ -5,8 +5,6 @@ const path = require("path");
 const fs = require("fs").promises;
 
 const cds = require("@sap/cds");
-const SQLiteService = require("@cap-js/sqlite");
-
 require("../common/promise");
 
 const Component = "replicationCache";
@@ -51,7 +49,7 @@ class ReplicationCache {
     this.group = this.options.group;
     this.log = cds.log(Component);
     this.template = null;
-    this.cache = new Map();
+    this.entries = new Map();
     this.initStats();
     this.attach();
   }
@@ -64,6 +62,8 @@ class ReplicationCache {
       if (service.name === this.name) {
         const refs = ReplicationCache.replicationRefs(this.model, service, this.options.deploy);
         if (refs.length > 0) {
+          // @cap-js/sqlite dependency is required for replication cache
+          this.SQLiteService = require("@cap-js/sqlite");
           this.setup(service, refs);
           this.log.info("using replication cache", {
             service: service.name,
@@ -74,7 +74,7 @@ class ReplicationCache {
             this.options?.credentials?.database !== Constants.InMemory
           ) {
             this.log.info("Preparing replication cache template database");
-            this.template = createDB(Tenant.Template, this.model, this.options)
+            this.template = createDB(this.SQLiteService, Tenant.Template, this.model, this.options)
               .then(() => {
                 this.log.info("Prepared replication cache template database");
               })
@@ -220,7 +220,7 @@ class ReplicationCache {
         this.stats.used++;
         this.stats.ratio = Math.round(this.stats.used / this.stats.hits);
         this.log.debug("Replication cache was used");
-        const db = this.cache.get(tenant).db;
+        const db = this.entries.get(tenant).db;
         if (this.options.measure) {
           return this.measure(
             async () => {
@@ -316,15 +316,15 @@ class ReplicationCache {
     if (refs.length === 0) {
       return;
     }
-    let tenantCache = cached(this.cache, tenant, async () => {
-      return new ReplicationCacheTenant(tenant, model, this.options).prepare();
+    let tenantCache = cached(this.entries, tenant, async () => {
+      return new ReplicationCacheTenant(this, tenant, model, this.options).prepare();
     });
     return (async () => {
       try {
         const prepared = Promise.resolve(tenantCache).then(async (tenantCache) => {
           const prepares = [];
           for (const ref of refs) {
-            const entry = cached(tenantCache.cache, ref, () => {
+            const entry = cached(tenantCache.entries, ref, () => {
               return new ReplicationCacheEntry(this, tenantCache, ref);
             });
             entry.touched = Date.now();
@@ -346,7 +346,7 @@ class ReplicationCache {
           return Status.NotReady;
         }
         for (const ref of refs) {
-          const entry = tenantCache.cache.get(ref);
+          const entry = tenantCache.entries.get(ref);
           if (!entry || entry.status !== Status.Ready) {
             return Status.NotReady;
           }
@@ -361,13 +361,13 @@ class ReplicationCache {
   }
 
   async prepared(tenant, ref) {
-    const tenants = tenant ? [tenant] : this.cache.keys();
+    const tenants = tenant ? [tenant] : this.entries.keys();
     for (const id of tenants) {
-      const tenant = await this.cache.get(id);
+      const tenant = await this.entries.get(id);
       if (tenant) {
-        const refs = ref ? [ref] : tenant.cache.keys();
+        const refs = ref ? [ref] : tenant.entries.keys();
         for (const ref of refs) {
-          const entry = tenant.cache.get(ref);
+          const entry = tenant.entries.get(ref);
           if (entry) {
             await entry.prepared;
           }
@@ -377,13 +377,13 @@ class ReplicationCache {
   }
 
   async clear(tenant, ref) {
-    const tenants = tenant ? [tenant] : this.cache.keys();
+    const tenants = tenant ? [tenant] : this.entries.keys();
     for (const id of tenants) {
-      const tenant = await this.cache.get(id);
+      const tenant = await this.entries.get(id);
       if (tenant) {
-        const refs = ref ? [ref] : tenant.cache.keys();
+        const refs = ref ? [ref] : tenant.entries.keys();
         for (const ref of refs) {
-          const entry = tenant.cache.get(ref);
+          const entry = tenant.entries.get(ref);
           if (entry) {
             await entry.clear();
             this.log.debug("Replication cache cleared", {
@@ -404,10 +404,10 @@ class ReplicationCache {
   }
 
   async prune(tenant) {
-    const maxSize = this.options.size / this.cache.size;
-    const tenants = tenant ? [tenant] : this.cache.keys();
+    const maxSize = this.options.size / this.entries.size;
+    const tenants = tenant ? [tenant] : this.entries.keys();
     for (const id of tenants) {
-      const tenant = await this.cache.get(id);
+      const tenant = await this.entries.get(id);
       const size = await this.size(tenant.id);
       let diff = size - maxSize;
       if (diff > 0) {
@@ -415,12 +415,12 @@ class ReplicationCache {
           tenant,
           diff,
         });
-        const refs = [...tenant.cache.keys()];
-        refs.sort((ref1, ref2) => tenant.cache.get(ref1).touched - tenant.cache.get(ref2).touched);
+        const refs = [...tenant.entries.keys()];
+        refs.sort((ref1, ref2) => tenant.entries.get(ref1).touched - tenant.entries.get(ref2).touched);
         const pruneRefs = [];
         for (const ref of refs) {
           pruneRefs.push(ref);
-          const entry = tenant.cache.get(ref);
+          const entry = tenant.entries.get(ref);
           if (entry) {
             diff -= entry.size;
             if (diff <= 0) {
@@ -429,7 +429,7 @@ class ReplicationCache {
           }
         }
         for (const ref of pruneRefs) {
-          const entry = tenant.cache.get(ref);
+          const entry = tenant.entries.get(ref);
           this.log.debug("Replication cache prunes ref for tenant", {
             tenant,
             ref,
@@ -444,13 +444,13 @@ class ReplicationCache {
 
   async size(tenant, ref) {
     let size = 0;
-    const tenants = tenant ? [tenant] : this.cache.keys();
+    const tenants = tenant ? [tenant] : this.entries.keys();
     for (const id of tenants) {
-      const tenant = await this.cache.get(id);
+      const tenant = await this.entries.get(id);
       if (tenant) {
-        const refs = ref ? [ref] : tenant.cache.keys();
+        const refs = ref ? [ref] : tenant.entries.keys();
         for (const ref of refs) {
-          const entry = tenant.cache.get(ref);
+          const entry = tenant.entries.get(ref);
           if (entry) {
             size += entry.size;
           }
@@ -461,7 +461,7 @@ class ReplicationCache {
   }
 
   async tenantSize(id) {
-    const tenant = await this.cache.get(id);
+    const tenant = await this.entries.get(id);
     if (tenant) {
       return await tenant.db.tx(async (tx) => {
         const result = await tx.run(
@@ -578,16 +578,17 @@ class ReplicationCache {
 }
 
 class ReplicationCacheTenant {
-  constructor(tenant, model, options) {
+  constructor(cache, tenant, model, options) {
+    this.cache = cache;
     this.id = tenant;
     this.model = model;
     this.options = options;
     this.csn = model.definitions;
-    this.cache = new Map();
+    this.entries = new Map();
   }
 
   async prepare() {
-    this.db = await createDB(this.id, this.model, this.options);
+    this.db = await createDB(this.cache.SQLiteService, this.id, this.model, this.options);
     return this;
   }
 }
@@ -697,7 +698,7 @@ class ReplicationCacheEntry {
   async load(thread) {
     this.timestamp = Date.now();
     await this.clear();
-    if (thread && cds.context && this.service instanceof SQLiteService) {
+    if (thread && cds.context && this.service instanceof this.cache.SQLiteService) {
       const srcTx = this.service.tx(cds.context);
       await this.db.tx({ tenant: this.tenant.id }, async (destTx) => {
         await this.loadRecords(srcTx, destTx);
@@ -803,7 +804,7 @@ class ReplicationCacheEntry {
 
 module.exports = ReplicationCache;
 
-async function createDB(tenant, model, options) {
+async function createDB(DBService, tenant, model, options) {
   const filePath = await dbPath(tenant, options);
   cds.log(Component).debug("Preparing replication cache database", {
     tenant,
@@ -813,7 +814,7 @@ async function createDB(tenant, model, options) {
     const templateDatabase = await dbPath(Tenant.Template, options);
     await fs.copyFile(templateDatabase, filePath);
   }
-  const db = new SQLiteService(tenant ?? Tenant.Default, model, {
+  const db = new DBService(tenant ?? Tenant.Default, model, {
     kind: "sqlite",
     impl: "@cap-js/sqlite",
     multiTenant: false,

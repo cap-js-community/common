@@ -30,6 +30,9 @@ Local replicated SQLite database can be queried with same query as the original 
 
 ### Usage
 
+> Replication cache uses SQLite as local database for productive usage.
+> Ensure `@cap-js/sqlite` is installed as dependency (not as dev dependency) in your project.
+
 ```cds
 @cds.replicate
 entity Books {

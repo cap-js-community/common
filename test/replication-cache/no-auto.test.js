@@ -30,15 +30,15 @@ describe("No Auto", () => {
       expect(cds.replicationCache.stats.used).toBe(0);
       expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
 
-      const tenant = await cds.replicationCache.cache.get(undefined);
-      expect(tenant.cache.get("test.Books").status).toBe("NEW");
+      const tenant = await cds.replicationCache.entries.get(undefined);
+      expect(tenant.entries.get("test.Books").status).toBe("NEW");
     });
 
     await cds.replicationCache.preload(undefined, ["test.Books"]);
 
     await cds.tx(async (tx) => {
-      const tenant = await cds.replicationCache.cache.get(undefined);
-      expect(tenant.cache.get("test.Books").status).toBe("READY");
+      const tenant = await cds.replicationCache.entries.get(undefined);
+      expect(tenant.entries.get("test.Books").status).toBe("READY");
 
       const result = await tx.run(SELECT.from("test.Books", ["ID", "title"]));
       expect(result.length).toBe(100);
@@ -67,15 +67,15 @@ describe("No Auto", () => {
     expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
     expect(cds.replicationCache.stats.counts["test.Books.texts"]).toBe(1);
 
-    let tenant = await cds.replicationCache.cache.get(undefined);
-    expect(tenant.cache.get("test.Books").status).toMatch(/(NEW|OPEN)/);
-    expect(tenant.cache.get("test.Books.texts").status).toBe("NEW");
+    let tenant = await cds.replicationCache.entries.get(undefined);
+    expect(tenant.entries.get("test.Books").status).toMatch(/(NEW|OPEN)/);
+    expect(tenant.entries.get("test.Books.texts").status).toBe("NEW");
 
     await cds.replicationCache.preload(undefined, ["test.Books", "test.Books.texts"]);
 
-    tenant = await cds.replicationCache.cache.get(undefined);
-    expect(tenant.cache.get("test.Books").status).toBe("READY");
-    expect(tenant.cache.get("test.Books.texts").status).toBe("READY");
+    tenant = await cds.replicationCache.entries.get(undefined);
+    expect(tenant.entries.get("test.Books").status).toBe("READY");
+    expect(tenant.entries.get("test.Books.texts").status).toBe("READY");
 
     response = await GET("/odata/v4/test/Books", {
       headers: {

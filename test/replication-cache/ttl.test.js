@@ -36,10 +36,10 @@ describe("TTL", () => {
       expect(cds.replicationCache.stats.used).toBe(1);
       expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
 
-      const tenant = await cds.replicationCache.cache.get(undefined);
-      expect(tenant.cache.get("test.Books").status).toBe("READY");
+      const tenant = await cds.replicationCache.entries.get(undefined);
+      expect(tenant.entries.get("test.Books").status).toBe("READY");
       await wait(2 * interval);
-      expect(tenant.cache.get("test.Books").status).toBe("OPEN");
+      expect(tenant.entries.get("test.Books").status).toBe("OPEN");
 
       result = await tx.run(SELECT.from("test.Authors", ["ID", "name"]));
       expect(result.length).toBe(100);
@@ -51,9 +51,9 @@ describe("TTL", () => {
       expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
       expect(cds.replicationCache.stats.counts["test.Authors"]).toBe(1);
 
-      expect(tenant.cache.get("test.Authors").status).toBe("READY");
+      expect(tenant.entries.get("test.Authors").status).toBe("READY");
       await wait(2 * interval);
-      expect(tenant.cache.get("test.Authors").status).toBe("OPEN");
+      expect(tenant.entries.get("test.Authors").status).toBe("OPEN");
     });
   });
 
@@ -73,12 +73,12 @@ describe("TTL", () => {
     expect(cds.replicationCache.stats.counts["test.Books"]).toBe(1);
     expect(cds.replicationCache.stats.counts["test.Books.texts"]).toBe(1);
 
-    const tenant = await cds.replicationCache.cache.get(undefined);
-    expect(tenant.cache.get("test.Books").status).toBe("READY");
-    expect(tenant.cache.get("test.Books.texts").status).toBe("READY");
+    const tenant = await cds.replicationCache.entries.get(undefined);
+    expect(tenant.entries.get("test.Books").status).toBe("READY");
+    expect(tenant.entries.get("test.Books.texts").status).toBe("READY");
     await wait(2 * interval);
-    expect(tenant.cache.get("test.Books").status).toBe("OPEN");
-    expect(tenant.cache.get("test.Books.texts").status).toBe("OPEN");
+    expect(tenant.entries.get("test.Books").status).toBe("OPEN");
+    expect(tenant.entries.get("test.Books.texts").status).toBe("OPEN");
 
     response = await GET("/odata/v4/test/Authors", {
       headers: {
@@ -95,8 +95,8 @@ describe("TTL", () => {
     expect(cds.replicationCache.stats.counts["test.Books.texts"]).toBe(1);
     expect(cds.replicationCache.stats.counts["test.Authors"]).toBe(1);
 
-    expect(tenant.cache.get("test.Authors").status).toBe("READY");
+    expect(tenant.entries.get("test.Authors").status).toBe("READY");
     await wait(2 * interval);
-    expect(tenant.cache.get("test.Authors").status).toBe("OPEN");
+    expect(tenant.entries.get("test.Authors").status).toBe("OPEN");
   });
 });

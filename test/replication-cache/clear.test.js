@@ -30,8 +30,8 @@ describe("Clear", () => {
       expect(await cds.replicationCache.size(undefined, "test.Books")).toBe(24576);
       await cds.replicationCache.clear(undefined, "test.Books");
       expect(await cds.replicationCache.size(undefined, "test.Books")).toBe(0);
-      const tenant = await cds.replicationCache.cache.get(undefined);
-      expect(tenant.cache.get("test.Books").status).toBe("OPEN");
+      const tenant = await cds.replicationCache.entries.get(undefined);
+      expect(tenant.entries.get("test.Books").status).toBe("OPEN");
     });
   });
 
@@ -51,7 +51,7 @@ describe("Clear", () => {
     expect(await cds.replicationCache.size(undefined, "test.Books")).toBe(24576);
     await cds.replicationCache.clear(undefined, "test.Books");
     expect(await cds.replicationCache.size(undefined, "test.Books")).toBe(0);
-    const tenant = await cds.replicationCache.cache.get(undefined);
-    expect(tenant.cache.get("test.Books").status).toBe("OPEN");
+    const tenant = await cds.replicationCache.entries.get(undefined);
+    expect(tenant.entries.get("test.Books").status).toBe("OPEN");
   });
 });

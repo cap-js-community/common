@@ -15,7 +15,7 @@ describe("Size", () => {
   beforeEach(async () => {
     await test.data.reset();
     await cds.replicationCache.reset();
-    cds.replicationCache.cache = new Map();
+    cds.replicationCache.entries = new Map();
   });
 
   it("GET via db - single ref", async () => {
