@@ -26,10 +26,10 @@ if (cds.env.replicationCache.plugin) {
 }
 
 cds.on("shutdown", async () => {
-  await shutdownWebSocketServer();
+  await closeRedisClients();
 });
 
-async function shutdownWebSocketServer() {
+async function closeRedisClients() {
   return await new Promise((resolve, reject) => {
     const timeoutRef = setTimeout(() => {
       clearTimeout(timeoutRef);

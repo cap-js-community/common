@@ -5,7 +5,7 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 
-const COMPONENT_NAME = "migrationCheck";
+const COMPONENT_NAME = "/cap-js-community-common/migrationCheck";
 const STRING_DEFAULT_LENGTH = 5000;
 
 const Checks = [releasedEntityCheck, newEntityCheck, uniqueIndexCheck, journalModeCheck];

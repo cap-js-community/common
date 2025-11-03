@@ -2,10 +2,11 @@
 
 const redis = require("redis");
 
-const COMPONENT_NAME = "redisClient";
+const COMPONENT_NAME = "/cap-js-community-common/redisClient";
 const LOG_AFTER_SEC = 5;
 
 class RedisClient {
+  #clusterClient = false;
   constructor(name) {
     this.name = name;
     this.log = cds.log(COMPONENT_NAME);
@@ -92,7 +93,8 @@ class RedisClient {
         throw error;
       }
       if (client) {
-        await this.resilientClientClose(client);
+        // NOTE: ignore promise: client should not wait + fn can't throw
+        this.resilientClientClose(client);
         return true;
       }
     } catch (err) {
@@ -118,7 +120,9 @@ class RedisClient {
       socket,
     };
     try {
+      delete socketOptions.redisNamespace;
       if (credentials?.cluster_mode) {
+        this.#clusterClient = true;
         return redis.createCluster({
           rootNodes: [socketOptions],
           defaults: socketOptions,
@@ -214,9 +218,7 @@ class RedisClient {
   }
 
   async closeClients() {
-    await this.closeMainClient();
-    await this.closeAdditionalClient();
-    await this.closeSubscribeClient();
+    await Promise.allSettled([this.closeMainClient(), this.closeAdditionalClient(), this.closeSubscribeClient()]);
   }
 
   async resilientClientClose(client) {
@@ -227,6 +229,10 @@ class RedisClient {
     } catch (err) {
       this.log.info("Error during redis close - continuing...", err);
     }
+  }
+
+  get isCluster() {
+    return this.#clusterClient;
   }
 
   static default(name = "default") {
