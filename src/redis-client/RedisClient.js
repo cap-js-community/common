@@ -120,7 +120,6 @@ class RedisClient {
       socket,
     };
     try {
-      delete socketOptions.redisNamespace;
       if (credentials?.cluster_mode) {
         this.#clusterClient = true;
         return redis.createCluster({
