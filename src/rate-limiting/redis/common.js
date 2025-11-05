@@ -4,14 +4,14 @@ const cds = require("@sap/cds");
 
 const { RedisClient } = require("../../redis-client");
 
-const COMPONENT_NAME = "rateLimiting";
+const COMPONENT_NAME = "/cap-js-community-common/rateLimiting";
 
 async function connectionCheck() {
-  return await RedisClient.default(COMPONENT_NAME).connectionCheck();
+  return await RedisClient.create(COMPONENT_NAME).connectionCheck();
 }
 
 async function perform(key, cb, cbFallback, retry = cds.env.rateLimiting.retry) {
-  const client = cds.env.rateLimiting.redis && (await RedisClient.default(COMPONENT_NAME).createMainClientAndConnect());
+  const client = cds.env.rateLimiting.redis && (await RedisClient.create(COMPONENT_NAME).createMainClientAndConnect());
   if (client) {
     const value = await cb(client, key);
     if (value === undefined) {

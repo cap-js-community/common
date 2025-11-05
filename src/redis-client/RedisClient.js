@@ -1,19 +1,29 @@
 "use strict";
 
 const redis = require("redis");
+const cds = require("@sap/cds");
 
-const COMPONENT_NAME = "redisClient";
+const COMPONENT_NAME = "/cap-js-community-common/redisClient";
 const LOG_AFTER_SEC = 5;
+const TIMEOUT_SHUTDOWN = 2500;
 
 class RedisClient {
+  #clusterClient = false;
+  #beforeCloseHandler;
   constructor(name) {
     this.name = name;
     this.log = cds.log(COMPONENT_NAME);
     this.mainClientPromise = null;
-    this.additionalClientPromise = null;
     this.subscriberClientPromise = null;
     this.subscribedChannels = {};
     this.lastErrorLog = Date.now();
+
+    if (!RedisClient._shutdownRegistered) {
+      RedisClient._shutdownRegistered = true;
+      cds.on("shutdown", async () => {
+        await this.closeRedisClients();
+      });
+    }
   }
 
   createMainClientAndConnect(options) {
@@ -30,22 +40,6 @@ class RedisClient {
 
     this.mainClientPromise = this.createClientAndConnect(options, errorHandlerCreateClient);
     return this.mainClientPromise;
-  }
-
-  createAdditionalClientAndConnect(options) {
-    if (this.additionalClientPromise) {
-      return this.additionalClientPromise;
-    }
-
-    const errorHandlerCreateClient = (err) => {
-      this.additionalClientPromise?.then?.(this.resilientClientClose);
-      this.log.error("Error from additional redis client", err);
-      this.additionalClientPromise = null;
-      setTimeout(() => this.createAdditionalClientAndConnect(options), LOG_AFTER_SEC * 1000).unref();
-    };
-
-    this.additionalClientPromise = this.createClientAndConnect(options, errorHandlerCreateClient);
-    return this.additionalClientPromise;
   }
 
   async createClientAndConnect(options, errorHandlerCreateClient, isConnectionCheck) {
@@ -92,7 +86,8 @@ class RedisClient {
         throw error;
       }
       if (client) {
-        await this.resilientClientClose(client);
+        // NOTE: ignore promise: client should not wait + fn can't throw
+        this.resilientClientClose(client);
         return true;
       }
     } catch (err) {
@@ -119,6 +114,7 @@ class RedisClient {
     };
     try {
       if (credentials?.cluster_mode) {
+        this.#clusterClient = true;
         return redis.createCluster({
           rootNodes: [socketOptions],
           defaults: socketOptions,
@@ -141,14 +137,14 @@ class RedisClient {
         LOG_AFTER_SEC * 1000,
       ).unref();
     };
-    this.subscribeChannels(options, { [channel]: subscribeHandler }, errorHandlerCreateClient);
+    this.subscribeChannels(options, errorHandlerCreateClient);
   }
 
-  subscribeChannels(options, subscribedChannels, errorHandlerCreateClient) {
+  subscribeChannels(options, errorHandlerCreateClient) {
     this.subscriberClientPromise = this.createClientAndConnect(options, errorHandlerCreateClient)
       .then((client) => {
         for (const channel in this.subscribedChannels) {
-          const fn = subscribedChannels[channel];
+          const fn = this.subscribedChannels[channel];
           client._subscribedChannels ??= {};
           if (client._subscribedChannels[channel]) {
             continue;
@@ -193,16 +189,6 @@ class RedisClient {
     this.log.info("Main redis client closed!");
   }
 
-  async closeAdditionalClient() {
-    if (!this.additionalClientPromise) {
-      return;
-    }
-    const client = this.additionalClientPromise;
-    this.additionalClientPromise = null;
-    await this.resilientClientClose(await client);
-    this.log.info("Additional redis client closed!");
-  }
-
   async closeSubscribeClient() {
     if (!this.subscriberClientPromise) {
       return;
@@ -214,9 +200,10 @@ class RedisClient {
   }
 
   async closeClients() {
-    await this.closeMainClient();
-    await this.closeAdditionalClient();
-    await this.closeSubscribeClient();
+    if (this.#beforeCloseHandler) {
+      await this.#beforeCloseHandler();
+    }
+    await Promise.allSettled([this.closeMainClient(), this.closeSubscribeClient()]);
   }
 
   async resilientClientClose(client) {
@@ -229,16 +216,42 @@ class RedisClient {
     }
   }
 
-  static default(name = "default") {
-    RedisClient._default ??= {};
-    if (!RedisClient._default[name]) {
-      RedisClient._default[name] = new RedisClient(name);
+  async closeRedisClients() {
+    return await new Promise((resolve, reject) => {
+      const timeoutRef = setTimeout(() => {
+        clearTimeout(timeoutRef);
+        resolve();
+      }, TIMEOUT_SHUTDOWN);
+      RedisClient.closeAllClients()
+        .then((result) => {
+          clearTimeout(timeoutRef);
+          resolve(result);
+        })
+        .catch((err) => {
+          clearTimeout(timeoutRef);
+          reject(err);
+        });
+    });
+  }
+
+  set beforeCloseHandler(cb) {
+    this.#beforeCloseHandler = cb;
+  }
+
+  get isCluster() {
+    return this.#clusterClient;
+  }
+
+  static create(name = "default") {
+    RedisClient._create ??= {};
+    if (!RedisClient._create[name]) {
+      RedisClient._create[name] = new RedisClient(name);
     }
-    return RedisClient._default[name];
+    return RedisClient._create[name];
   }
 
   static async closeAllClients() {
-    for (const entry of Object.values(RedisClient._default || {})) {
+    for (const entry of Object.values(RedisClient._create || {})) {
       await entry.closeClients();
     }
   }

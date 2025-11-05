@@ -19,36 +19,29 @@ describe("Redis Client", () => {
   });
 
   it("Default", async () => {
-    const redisClient1 = RedisClient.default("first");
+    const redisClient1 = RedisClient.create("first");
     expect(redisClient1).toBeDefined();
-    const redisClient2 = RedisClient.default("second");
+    const redisClient2 = RedisClient.create("second");
     expect(redisClient2).toBeDefined();
     expect(redisClient1).not.toBe(redisClient2);
   });
 
   it("Main Client", async () => {
-    const redisClient = RedisClient.default();
+    const redisClient = RedisClient.create();
     const mainClient = await redisClient.createMainClientAndConnect();
     expect(mainClient).toBeDefined();
     await redisClient.closeMainClient();
   });
 
-  it("Additional Client", async () => {
-    const redisClient = RedisClient.default();
-    const additionalClient = await redisClient.createAdditionalClientAndConnect();
-    expect(additionalClient).toBeDefined();
-    await redisClient.closeMainClient();
-  });
-
   it("Close Client", async () => {
-    const redisClient = RedisClient.default();
+    const redisClient = RedisClient.create();
     const mainClient = await redisClient.createMainClientAndConnect();
     expect(mainClient).toBeDefined();
     await RedisClient.closeAllClients();
   });
 
   it("Subscribe Client", async () => {
-    const redisClient = RedisClient.default();
+    const redisClient = RedisClient.create();
     await redisClient.subscribeChannel({}, "test", () => {});
     expect(redisClient.subscribedChannels["test"]).toBeDefined();
     const result = await redisClient.publishMessage({}, "test", "message");
@@ -56,7 +49,7 @@ describe("Redis Client", () => {
   });
 
   it("Connection Check", async () => {
-    const redisClient = RedisClient.default();
+    const redisClient = RedisClient.create();
     const result = await redisClient.connectionCheck();
     expect(result).toBe(true);
   });
@@ -70,7 +63,7 @@ describe("Redis Client", () => {
       port: 6379,
       password: "1234",
     };
-    const redisClient = RedisClient.default();
+    const redisClient = RedisClient.create();
     const result = await redisClient.createMainClientAndConnect({
       a: 1,
       password: "12345",
@@ -95,28 +88,28 @@ describe("Redis Client", () => {
 
   it("Error - Create Client", async () => {
     redisMock.throwError("createClient");
-    const redisClient = RedisClient.default();
+    const redisClient = RedisClient.create();
     const mainClient = await redisClient.createMainClientAndConnect();
     expect(mainClient).toBeUndefined();
   });
 
   it("Error - Connect Client", async () => {
     redisMock.throwError("connect");
-    const redisClient = RedisClient.default();
+    const redisClient = RedisClient.create();
     const mainClient = await redisClient.createMainClientAndConnect();
     expect(mainClient).toBeUndefined();
   });
 
   it("Error - Connection Check", async () => {
     redisMock.throwError("createClient");
-    const redisClient = RedisClient.default();
+    const redisClient = RedisClient.create();
     const result = await redisClient.connectionCheck();
     expect(result).toBe(false);
   });
 
   it("Error - Subscribe Channel", async () => {
     redisMock.throwError("createClient");
-    const redisClient = RedisClient.default();
+    const redisClient = RedisClient.create();
     const subscribeHandler = () => {};
     await redisClient.subscribeChannel({}, "test", subscribeHandler);
     expect(await redisClient.subscribedChannels["test"]).toBe(subscribeHandler);
