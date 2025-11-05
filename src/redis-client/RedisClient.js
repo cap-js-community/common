@@ -9,6 +9,7 @@ const TIMEOUT_SHUTDOWN = 2500;
 
 class RedisClient {
   #clusterClient = false;
+  #beforeCloseHandler;
   constructor(name) {
     this.name = name;
     this.log = cds.log(COMPONENT_NAME);
@@ -199,7 +200,10 @@ class RedisClient {
   }
 
   async closeClients() {
-    await Promise.allSettled([this.closeMainClient(), this.closeAdditionalClient(), this.closeSubscribeClient()]);
+    if (this.#beforeCloseHandler) {
+      await this.#beforeCloseHandler();
+    }
+    await Promise.allSettled([this.closeMainClient(), this.closeSubscribeClient()]);
   }
 
   async resilientClientClose(client) {
@@ -228,6 +232,10 @@ class RedisClient {
           reject(err);
         });
     });
+  }
+
+  set beforeCloseHandler(cb) {
+    this.#beforeCloseHandler = cb;
   }
 
   get isCluster() {
