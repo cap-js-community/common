@@ -328,14 +328,14 @@ A Redis Client broker is provided to connect to Redis service.
 
 ```js
 const { RedisClient } = require("@cap-js-community/common");
-const mainClient = await RedisClient.default().createMainClientAndConnect(options);
+const mainClient = await RedisClient.create().createMainClientAndConnect(options);
 ```
 
 #### Main named singleton
 
 ```js
 const { RedisClient } = require("@cap-js-community/common");
-const mainClient = await RedisClient.default("name").createMainClientAndConnect(options);
+const mainClient = await RedisClient.create("name").createMainClientAndConnect(options);
 ```
 
 #### Custom named
@@ -384,14 +384,14 @@ Specific Redis options for a custom name can be established as follows:
 
 ```js
 const { RedisClient } = require("@cap-js-community/common");
-const mainClient = await RedisClient.default("customName").createMainClientAndConnect(options);
+const mainClient = await RedisClient.create("customName").createMainClientAndConnect(options);
 ```
 
 In addition, options can be passed to Redis client during creation via `options` parameter:
 
 ```js
 const { RedisClient } = require("@cap-js-community/common");
-const mainClient = await RedisClient.default().createMainClientAndConnect(options);
+const mainClient = await RedisClient.create().createMainClientAndConnect(options);
 ```
 
 For details on Redis `createClient` configuration options see [Redis Client Configuration](https://github.com/redis/node-redis/blob/master/docs/client-configuration.md).
