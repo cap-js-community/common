@@ -33,6 +33,13 @@ describe("Redis Client", () => {
     await redisClient.closeMainClient();
   });
 
+  it("Additional Client", async () => {
+    const redisClient = RedisClient.create();
+    const additionalClient = await redisClient.createAdditionalClientAndConnect();
+    expect(additionalClient).toBeDefined();
+    await redisClient.closeMainClient();
+  });
+
   it("Close Client", async () => {
     const redisClient = RedisClient.create();
     const mainClient = await redisClient.createMainClientAndConnect();

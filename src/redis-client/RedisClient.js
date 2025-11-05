@@ -10,8 +10,9 @@ const TIMEOUT_SHUTDOWN = 2500;
 class RedisClient {
   #clusterClient = false;
   #beforeCloseHandler;
-  constructor(name) {
+  constructor(name, env) {
     this.name = name;
+    this.env = env || this.name;
     this.log = cds.log(COMPONENT_NAME);
     this.mainClientPromise = null;
     this.subscriberClientPromise = null;
@@ -40,6 +41,11 @@ class RedisClient {
 
     this.mainClientPromise = this.createClientAndConnect(options, errorHandlerCreateClient);
     return this.mainClientPromise;
+  }
+
+  createAdditionalClientAndConnect(options) {
+    const redisClient = RedisClient.create(this.name + "-2", this.env);
+    return redisClient.createMainClientAndConnect(options);
   }
 
   async createClientAndConnect(options, errorHandlerCreateClient, isConnectionCheck) {
@@ -98,7 +104,7 @@ class RedisClient {
 
   createClientBase(redisOptions = {}) {
     const { credentials, options } =
-      (this.name ? cds.env.requires[`redis-${this.name}`] : undefined) || cds.env.requires["redis"] || {};
+      (this.env ? cds.env.requires[`redis-${this.env}`] : undefined) || cds.env.requires["redis"] || {};
     const socket = {
       host: credentials?.hostname ?? "127.0.0.1",
       tls: !!credentials?.tls,
@@ -242,12 +248,17 @@ class RedisClient {
     return this.#clusterClient;
   }
 
-  static create(name = "default") {
+  static create(name = "default", env) {
+    env ??= name;
     RedisClient._create ??= {};
     if (!RedisClient._create[name]) {
-      RedisClient._create[name] = new RedisClient(name);
+      RedisClient._create[name] = new RedisClient(name, env);
     }
     return RedisClient._create[name];
+  }
+
+  static default(name) {
+    return RedisClient.create(name);
   }
 
   static async closeAllClients() {
