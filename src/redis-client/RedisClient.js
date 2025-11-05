@@ -136,14 +136,14 @@ class RedisClient {
         LOG_AFTER_SEC * 1000,
       ).unref();
     };
-    this.subscribeChannels(options, { [channel]: subscribeHandler }, errorHandlerCreateClient);
+    this.subscribeChannels(options, errorHandlerCreateClient);
   }
 
-  subscribeChannels(options, subscribedChannels, errorHandlerCreateClient) {
+  subscribeChannels(options, errorHandlerCreateClient) {
     this.subscriberClientPromise = this.createClientAndConnect(options, errorHandlerCreateClient)
       .then((client) => {
         for (const channel in this.subscribedChannels) {
-          const fn = subscribedChannels[channel];
+          const fn = this.subscribedChannels[channel];
           client._subscribedChannels ??= {};
           if (client._subscribedChannels[channel]) {
             continue;
