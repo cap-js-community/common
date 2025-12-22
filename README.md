@@ -19,6 +19,7 @@ This project provides common functionality for CDS services to be consumed with 
 - [Migration Check](#migration-check)
 - [Rate Limiting](#rate-limiting)
 - [Redis Client](#redis-client)
+- [Local HTML5 Repository](#local-html5-repository)
 - [Support, Feedback, Contributing](#support-feedback-contributing)
 - [Code of Conduct](#code-of-conduct)
 - [Licensing](#licensing)
@@ -395,6 +396,33 @@ const mainClient = await RedisClient.create().createMainClientAndConnect(options
 ```
 
 For details on Redis `createClient` configuration options see [Redis Client Configuration](https://github.com/redis/node-redis/blob/master/docs/client-configuration.md).
+
+## Local HTML5 Repository
+
+Developing HTML5 apps against hybrid environments including Approuter component requires a local HTML5 repository to directly test the changes to UI5 applications without deployment to a remote HTML5 repository.
+
+### Usage
+
+- Create a `default-env.json` in `approuter` folder, including a valid HTML5 repository configuration from deployment environment:
+
+```json
+{
+  "VCAP_SERVICES": {
+    "html5-apps-repo": [
+      {
+        "credentials": {
+          "uri": "https://html5-apps-repo-rt.cfapps.sap.hana.ondemand.com"
+        }
+      }
+    ]
+  }
+}
+```
+
+- Call command: `local-html5-repo`
+
+All apps and libraries located in `app` folder and containing an `ui5.yaml` are redirected to local HTML5 repository
+served from local file system. All other requests are proxied to the remote HTML5 repository.
 
 ## Support, Feedback, Contributing
 

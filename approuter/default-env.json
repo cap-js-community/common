@@ -1,0 +1,11 @@
+{
+  "VCAP_SERVICES": {
+    "html5-apps-repo": [
+      {
+        "credentials": {
+          "uri": "https://html5-apps-repo-rt.cfapps.sap.hana.ondemand.com"
+        }
+      }
+    ]
+  }
+}
