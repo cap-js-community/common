@@ -3,10 +3,13 @@
 /* eslint-disable no-console */
 /* eslint-disable n/no-process-exit */
 
+// Suppress deprecation warning in Node 22 due to http-proxy using util._extend()
+require("util")._extend = Object.assign;
+
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
-const proxy = require("express-request-proxy");
+const { createProxyMiddleware } = require("http-proxy-middleware");
 
 const PORT = process.env.PORT || 3001;
 const DEFAULT_ENV_PATH = path.join(process.cwd(), "approuter/default-env.json");
@@ -19,6 +22,7 @@ class LocalHTML5Repo {
     this.component = COMPONENT_NAME;
     this.port = options?.port || PORT;
     this.path = options?.path || DEFAULT_ENV_PATH;
+
     try {
       this.defaultEnv = require(this.path);
     } catch (err) {
@@ -39,23 +43,27 @@ class LocalHTML5Repo {
         .readdirSync(APP_ROOT, { withFileTypes: true })
         .filter((dirent) => dirent.isDirectory())
         .map((dirent) => dirent.name);
+
       for (const appDirectory of appDirectories) {
         const ui5ConfigPath = path.join(APP_ROOT, appDirectory, "ui5.yaml");
         if (!fs.existsSync(ui5ConfigPath)) {
           continue;
         }
+
         const ui5Config = fs.readFileSync(ui5ConfigPath, "utf-8");
         const { name, type } = this.extractNameAndType(ui5Config);
         const appId = name?.replace(/\./g, "");
+
         if (appId) {
           app.use(
             [`/${appId}`, `/${appId}-:version`],
             express.static(path.join(APP_ROOT, appDirectory, type === "application" ? "webapp" : "src")),
-            // Serve xs-app.json as well which is not in webapp
+            // Serve xs-app.json and other non-webapp files
             express.static(path.join(APP_ROOT, appDirectory), {
               fallthrough: false,
             }),
           );
+
           console.log(`- ${name} [${type}] -> ${path.join(APP_ROOT, appDirectory)}`);
         }
       }
@@ -65,53 +73,76 @@ class LocalHTML5Repo {
         process.exit(0);
       });
 
-      // Forward rest to the html5 apps repo
-      const html5RepoProxy = proxy({
-        url: `${this.originalHtmlRepoUrl}/*`,
+      // Forward everything else to the original HTML5 Apps Repo
+      const html5RepoProxy = createProxyMiddleware({
+        target: this.originalHtmlRepoUrl,
+        changeOrigin: true,
+        ws: true,
+        logLevel: "warn",
+        onError(err, req, res) {
+          console.error("HTML5 Repo proxy error:", err.message);
+          res.status(502).end("Bad Gateway");
+        },
       });
-      app.use("/*", html5RepoProxy);
+
+      // Catch-all proxy (must be last)
+      app.use("/", html5RepoProxy);
+
       this.server = app.listen(this.port, () => {
-        console.log("Local HTML5 repository running on port " + this.port);
+        console.log(`Local HTML5 repository running on port ${this.port}`);
         resolve(this.server);
       });
     });
   }
 
   async stop() {
-    this.server.close();
+    if (this.server) {
+      this.server.close();
+    }
     this.restoreDefaultEnv();
   }
 
   adjustDefaultEnv() {
     this.originalHtmlRepoUrl = this.defaultEnv.VCAP_SERVICES["html5-apps-repo"][0].credentials.uri;
+
     this.defaultEnv.VCAP_SERVICES["html5-apps-repo"][0].credentials.uri = `http://localhost:${this.port}`;
+
     this.writeDefaultEnv();
   }
 
   restoreDefaultEnv() {
     this.defaultEnv.VCAP_SERVICES["html5-apps-repo"][0].credentials.uri = this.originalHtmlRepoUrl;
+
     this.writeDefaultEnv();
   }
 
   writeDefaultEnv() {
     const url = this.defaultEnv.VCAP_SERVICES["html5-apps-repo"][0].credentials.uri;
+
     console.log(`Rewriting HTML5 Repo URL in default-env.json of approuter: ${url}`);
+
     fs.writeFileSync(DEFAULT_ENV_PATH, JSON.stringify(this.defaultEnv, null, 2) + "\n");
   }
 
   extractNameAndType(content) {
     const result = { name: "", type: "" };
+
     for (const line of content.split("\n")) {
-      if (line.trim().startsWith("name:")) {
-        result.name = line.trim().split(" ")[1];
+      const trimmed = line.trim();
+
+      if (trimmed.startsWith("name:")) {
+        result.name = trimmed.split(" ")[1];
       }
-      if (line.startsWith("type:")) {
-        result.type = line.split(" ")[1];
+
+      if (trimmed.startsWith("type:")) {
+        result.type = trimmed.split(" ")[1];
       }
-      if (result.type && result.name) {
+
+      if (result.name && result.type) {
         break;
       }
     }
+
     return result;
   }
 }
