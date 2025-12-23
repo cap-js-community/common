@@ -21,7 +21,7 @@ describe("Local HTML5 Repo", () => {
     await localHTML5Repo.start();
     expect(log.output).toContain(`Rewriting HTML5 Repo URL in default-env.json of approuter: http://localhost:${port}`);
     expect(log.output).toContain("Registering apps:");
-    expect(log.output).toContain("- test [application] -> /Users/D045365/Documents/git/cds-common/app/test");
+    expect(log.output).toMatch(/- test \[application] -> .*common\/app\/test/);
     expect(log.output).toContain(`Local HTML5 repository running on port ${port}`);
     await localHTML5Repo.stop();
   });

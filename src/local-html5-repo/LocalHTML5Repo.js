@@ -96,7 +96,7 @@ class LocalHTML5Repo {
   writeDefaultEnv() {
     const url = this.defaultEnv.VCAP_SERVICES["html5-apps-repo"][0].credentials.uri;
     console.log(`Rewriting HTML5 Repo URL in default-env.json of approuter: ${url}`);
-    fs.writeFileSync(DEFAULT_ENV_PATH, JSON.stringify(this.defaultEnv, null, 2));
+    fs.writeFileSync(DEFAULT_ENV_PATH, JSON.stringify(this.defaultEnv, null, 2) + "\n");
   }
 
   extractNameAndType(content) {
