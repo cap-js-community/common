@@ -23,10 +23,10 @@ program
 program.unknownOption = function () {};
 program.parse(process.argv);
 
-(() => {
+(async () => {
   try {
     const options = program.opts();
-    new LocalHTML5Repo(options);
+    await new LocalHTML5Repo(options).start();
   } catch (err) {
     console.error(err);
     process.exit(-1);

@@ -27,6 +27,7 @@
   "types": "index.d.ts",
   "bin": {
     "cdsmc": "bin/cdsmc.js",
+    "lh5r": "bin/local-html5-repo.js",
     "local-html5-repo": "bin/local-html5-repo.js"
   },
   "scripts": {

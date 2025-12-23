@@ -419,7 +419,7 @@ Developing HTML5 apps against hybrid environments including Approuter component 
 }
 ```
 
-- Call command: `local-html5-repo`
+- Call command: `local-html5-repo` (shortcut: `lh5r`)
 
 All apps and libraries located in `app` folder and containing an `ui5.yaml` are redirected to local HTML5 repository
 served from local file system. All other requests are proxied to the remote HTML5 repository.
