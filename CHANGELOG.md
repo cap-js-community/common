@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Version 0.3.3 - 2026-01-xx
 
+### Added
+
+- Local HTML5 repository
+
 ### Fixed
 
-- tbd
+- Fix rate limiting redis env
 
 ## Version 0.3.2 - 2025-11-05
 

@@ -11,7 +11,7 @@ async function connectionCheck() {
 }
 
 async function perform(key, cb, cbFallback, retry = cds.env.rateLimiting.retry) {
-  const client = cds.env.rateLimiting.redis && (await RedisClient.create(COMPONENT_NAME).createMainClientAndConnect());
+  const client = cds.env.rateLimiting.redis && (await RedisClient.create("rateLimiting").createMainClientAndConnect());
   if (client) {
     const value = await cb(client, key);
     if (value === undefined) {
