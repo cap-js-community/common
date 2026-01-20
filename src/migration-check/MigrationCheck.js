@@ -559,7 +559,10 @@ function journalModeCheck(csnBuild, csnProd, whitelist, options) {
   }
   visitPersistenceEntities(
     csnBuild,
-    (definitionBuild) => {
+    (definitionBuild, { draft } = {}) => {
+      if (draft) {
+        return;
+      }
       const definitionProd = csnProd.definitions[definitionBuild.name];
       if (definitionProd) {
         if (definitionBuild["@cds.persistence.journal"] && !definitionProd["@cds.persistence.journal"]) {
@@ -616,6 +619,9 @@ function visitPersistenceEntities(csn, onEntity, filter) {
       if (partOfService) {
         const _compositeEntities = compositeEntities(csn.definitions, name);
         _compositeEntities.forEach((name) => {
+          if (filter && !filter.includes(name)) {
+            return;
+          }
           const definition = csn.definitions[name];
           definition.name = name;
           onEntity(definition, { draft: true });
