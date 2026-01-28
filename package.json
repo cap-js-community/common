@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "commander": "^14.0.2",
-    "express": "^4.22.1",
+    "express": "^4.22.1 || ^5.2.1",
     "http-proxy-middleware": "^3.0.5",
     "redis": "^4.7.1",
     "verror": "^1.10.1"
