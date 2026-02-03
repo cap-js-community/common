@@ -1,0 +1,399 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`CDM Builder Build 1`] = `
+{
+  "_version": "3.2.0",
+  "identification": {
+    "entityType": "bundle",
+    "id": "common-flp",
+    "title": "common",
+  },
+  "payload": {
+    "apps": [
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "entityType": "businessapp",
+          "id": "common-shell-home",
+          "title": "{{title}}",
+        },
+        "payload": {
+          "defaultViz": "default",
+          "targetAppConfig": {
+            "sap.app": {
+              "crossNavigation": {
+                "inbounds": {
+                  "default": {
+                    "action": "home",
+                    "semanticObject": "Shell",
+                    "signature": {},
+                  },
+                },
+              },
+              "tags": {
+                "technicalAttributes": [
+                  "APPTYPE_HOMEPAGE",
+                ],
+              },
+            },
+            "sap.integration": {
+              "urlTemplateId": "common-urltemplate.home",
+              "urlTemplateParams": {
+                "path": "",
+              },
+            },
+            "sap.ui": {
+              "icons": {
+                "icon": "sap-icon://activity-2",
+              },
+            },
+          },
+          "visualizations": {
+            "default": {
+              "vizConfig": {
+                "sap.app": {
+                  "title": "{{title}}",
+                },
+                "sap.flp": {
+                  "target": {
+                    "inboundId": "default",
+                    "type": "IBN",
+                  },
+                },
+              },
+              "vizType": "sap.ushell.StaticAppLauncher",
+            },
+          },
+        },
+        "texts": [
+          {
+            "locale": "en",
+            "textDictionary": {
+              "title": "CAP Node.js Community Common",
+            },
+          },
+          {
+            "locale": "",
+            "textDictionary": {
+              "title": "CAP Node.js Community Common",
+            },
+          },
+        ],
+      },
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "entityType": "businessapp",
+          "id": "test",
+          "title": "{{title}}",
+        },
+        "payload": {
+          "defaultViz": "Test-display",
+          "targetAppConfig": {
+            "sap.app": {
+              "crossNavigation": {
+                "inbounds": {
+                  "Test-display": {
+                    "action": "display",
+                    "semanticObject": "Test",
+                    "signature": {},
+                    "subTitle": "{{appDescription}}",
+                    "title": "{{appTitle}}",
+                  },
+                },
+              },
+            },
+            "sap.integrations": [
+              {
+                "navMode": "explace",
+                "urlTemplateId": "common-urltemplate",
+                "urlTemplateParams": {
+                  "path": "",
+                },
+              },
+            ],
+            "sap.ui": {
+              "icons": {
+                "icon": "sap-icon://activity-2",
+              },
+            },
+          },
+          "visualizations": {
+            "Test-display": {
+              "vizConfig": {
+                "sap.app": {
+                  "title": "{{title}}",
+                },
+                "sap.flp": {
+                  "target": {
+                    "inboundId": "Test-display",
+                    "type": "IBN",
+                  },
+                },
+              },
+              "vizType": "sap.ushell.StaticAppLauncher",
+            },
+          },
+        },
+        "texts": [
+          {
+            "locale": "en",
+            "textDictionary": {
+              "title": "Test",
+            },
+          },
+          {
+            "locale": "",
+            "textDictionary": {
+              "title": "Test",
+            },
+          },
+        ],
+      },
+    ],
+    "catalogs": [
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "entityType": "catalog",
+          "id": "common-catalog",
+          "title": "{{title}}",
+        },
+        "payload": {
+          "viz": [
+            {
+              "appId": "test",
+              "vizId": "Test-display",
+            },
+          ],
+        },
+        "texts": [
+          {
+            "locale": "en",
+            "textDictionary": {
+              "title": "CAP Node.js Community Common",
+            },
+          },
+          {
+            "locale": "",
+            "textDictionary": {
+              "title": "CAP Node.js Community Common",
+            },
+          },
+        ],
+      },
+    ],
+    "groups": [
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "entityType": "group",
+          "id": "common-group",
+          "title": "{{title}}",
+        },
+        "payload": {
+          "viz": [
+            {
+              "appId": "test",
+              "id": "test",
+              "vizId": "Test-display",
+            },
+          ],
+        },
+        "texts": [
+          {
+            "locale": "en",
+            "textDictionary": {
+              "title": "CAP Node.js Community Common",
+            },
+          },
+          {
+            "locale": "",
+            "textDictionary": {
+              "title": "CAP Node.js Community Common",
+            },
+          },
+        ],
+      },
+    ],
+    "pages": [
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "entityType": "page",
+          "id": "common-page\`;",
+          "title": "{{title}}",
+        },
+        "payload": {
+          "sections": [
+            {
+              "id": "common-section",
+              "title": "{{title}}",
+              "viz": [
+                {
+                  "appId": "test",
+                  "id": "test",
+                  "vizId": "Test-display",
+                },
+              ],
+            },
+          ],
+        },
+        "texts": [
+          {
+            "locale": "en",
+            "textDictionary": {
+              "title": "CAP Node.js Community Common",
+            },
+          },
+          {
+            "locale": "",
+            "textDictionary": {
+              "title": "CAP Node.js Community Common",
+            },
+          },
+        ],
+      },
+    ],
+    "roles": [
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "entityType": "role",
+          "id": "Test",
+          "title": "{{title}}",
+        },
+        "payload": {
+          "apps": [
+            {
+              "id": "test",
+            },
+            {
+              "id": "common-shell-home",
+            },
+          ],
+          "catalogs": [
+            {
+              "id": "common-catalog",
+            },
+          ],
+          "groups": [
+            {
+              "id": "common-group",
+            },
+          ],
+          "spaces": [
+            {
+              "id": "common-space",
+            },
+          ],
+        },
+        "texts": [
+          {
+            "locale": "",
+            "textDictionary": {
+              "title": "Test",
+            },
+          },
+        ],
+      },
+    ],
+    "spaces": [
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "entityType": "space",
+          "id": "common-space",
+          "title": "{{title}}",
+        },
+        "payload": {
+          "contentNodes": [
+            {
+              "id": "common-page\`;",
+              "type": "page",
+            },
+          ],
+        },
+        "texts": [
+          {
+            "locale": "en",
+            "textDictionary": {
+              "title": "CAP Node.js Community Common",
+            },
+          },
+          {
+            "locale": "",
+            "textDictionary": {
+              "title": "CAP Node.js Community Common",
+            },
+          },
+        ],
+      },
+    ],
+    "urlTemplates": [
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "entityType": "urltemplate",
+          "id": "common-urltemplate-home",
+          "title": "{{title}}",
+        },
+        "payload": {
+          "capabilities": {
+            "navigationMode": "standalone",
+          },
+          "parameters": {
+            "mergeWith": "/urlTemplates/urltemplate.base/payload/parameters/names",
+            "names": {
+              "intentParameters": "{*}",
+              "path": "{./sap.integration/urlTemplateParams/path}",
+            },
+          },
+          "urlTemplate": "{+_baseUrl}{+path}#Shell-home{?intentParameters*}",
+        },
+        "texts": [
+          {
+            "locale": "en",
+            "textDictionary": {},
+          },
+          {
+            "locale": "",
+            "textDictionary": {},
+          },
+        ],
+      },
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "entityType": "urltemplate",
+          "id": "common-urltemplate",
+          "title": "{{title}}",
+        },
+        "payload": {
+          "capabilities": {
+            "navigationMode": "standalone",
+          },
+          "parameters": {
+            "mergeWith": "/urlTemplates/urltemplate.base/payload/parameters/names",
+            "names": {
+              "intentParameters": "{*}",
+              "path": "{./sap.integration/urlTemplateParams/path}",
+            },
+          },
+          "urlTemplate": "{+_baseUrl}{+path}#{+semanticObject}-{+action}{?intentParameters*}",
+        },
+        "texts": [
+          {
+            "locale": "en",
+            "textDictionary": {},
+          },
+          {
+            "locale": "",
+            "textDictionary": {},
+          },
+        ],
+      },
+    ],
+  },
+}
+`;

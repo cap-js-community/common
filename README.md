@@ -15,11 +15,13 @@ This project provides common functionality for CDS services to be consumed with 
 
 ## Table of Contents
 
-- [Replication Cache](#replication-cache)
-- [Migration Check](#migration-check)
-- [Rate Limiting](#rate-limiting)
-- [Redis Client](#redis-client)
-- [Local HTML5 Repository](#local-html5-repository)
+- **Features:**
+  - [Replication Cache](#replication-cache)
+  - [Migration Check](#migration-check)
+  - [Rate Limiting](#rate-limiting)
+  - [Redis Client](#redis-client)
+  - [Local HTML5 Repository](#local-html5-repository)
+  - [CDM Builder](#cdm-builder)
 - [Support, Feedback, Contributing](#support-feedback-contributing)
 - [Code of Conduct](#code-of-conduct)
 - [Licensing](#licensing)
@@ -423,6 +425,15 @@ Developing HTML5 apps against hybrid environments including Approuter component 
 
 All apps and libraries located in `app` folder and containing an `ui5.yaml` are redirected to local HTML5 repository
 served from local file system. All other requests are proxied to the remote HTML5 repository.
+
+## CDM Builder
+
+The CDM Builder allows to build a CDM file `cdm.json` from apps, roles and portal content:
+
+- Build CDM: `cdm-build`
+
+The generated CDM is generated at `app/cdm.json` and can be included into HTML5 Repository automatically
+when copied at `resources/cdm.json` during build time.
 
 ## Support, Feedback, Contributing
 

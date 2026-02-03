@@ -2,3 +2,18 @@ specVersion: "3.1"
 metadata:
   name: test
 type: application
+resources:
+  configuration:
+    propertiesFileSourceEncoding: UTF-8
+builder:
+  resources:
+    excludes:
+      - "/test/**"
+      - "/localService/**"
+  customTasks:
+    - name: ui5-task-zipper
+      afterTask: generateVersionInfo
+      configuration:
+        archiveName: test
+        additionalFiles:
+          - xs-app.json

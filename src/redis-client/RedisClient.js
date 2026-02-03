@@ -3,7 +3,7 @@
 const redis = require("redis");
 const cds = require("@sap/cds");
 
-const COMPONENT_NAME = "/cap-js-community-common/redisClient";
+const COMPONENT_NAME = "/cap-js-community-common/redis-client";
 const LOG_AFTER_SEC = 5;
 const TIMEOUT_SHUTDOWN = 2500;
 

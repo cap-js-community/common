@@ -1,6 +1,5 @@
 "use strict";
 
-/* eslint-disable no-console */
 /* eslint-disable n/no-process-exit */
 
 // Suppress deprecation warning in Node 22 due to http-proxy using util._extend()
@@ -10,23 +9,35 @@ const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const { createProxyMiddleware } = require("http-proxy-middleware");
+const cds = require("@sap/cds");
 
-const PORT = process.env.PORT || 3001;
-const DEFAULT_ENV_PATH = path.join(process.cwd(), "approuter/default-env.json");
+const DEFAULT_ENV_NAME = "default-env.json";
+const DEFAULT_ENV_PATHS = [
+  path.join(process.cwd(), "app", "router", DEFAULT_ENV_NAME),
+  path.join(process.cwd(), "approuter", DEFAULT_ENV_NAME),
+];
 const APP_ROOT = path.join(process.cwd(), "app");
+const PORT = process.env.PORT || 3001;
 
-const COMPONENT_NAME = "/cap-js-community-common/localHTML5Repo";
+const COMPONENT_NAME = "/cap-js-community-common/local-html5-repo";
 
 class LocalHTML5Repo {
   constructor(options) {
     this.component = COMPONENT_NAME;
     this.port = options?.port || PORT;
-    this.path = options?.path || DEFAULT_ENV_PATH;
-
+    this.path = options?.path;
+    if (!this.path) {
+      for (const path of DEFAULT_ENV_PATHS) {
+        if (fs.existsSync(path)) {
+          this.path = path;
+          break;
+        }
+      }
+    }
     try {
       this.defaultEnv = require(this.path);
     } catch (err) {
-      console.error(`Cannot read default-env.json at ${this.path}`);
+      cds.log(this.component).error(`Cannot read default-env.json at ${this.path}`);
       throw err;
     }
   }
@@ -35,7 +46,7 @@ class LocalHTML5Repo {
     return new Promise((resolve) => {
       this.adjustDefaultEnv();
 
-      console.log("Registering apps:");
+      cds.log(this.component).info("Registering apps:");
       const app = express();
 
       // Serve every webapp
@@ -64,7 +75,7 @@ class LocalHTML5Repo {
             }),
           );
 
-          console.log(`- ${name} [${type}] -> ${path.join(APP_ROOT, appDirectory)}`);
+          cds.log(this.component).info(`- ${name} [${type}] -> ${path.join(APP_ROOT, appDirectory)}`);
         }
       }
 
@@ -80,7 +91,7 @@ class LocalHTML5Repo {
         ws: true,
         logLevel: "warn",
         onError(err, req, res) {
-          console.error("HTML5 Repo proxy error:", err.message);
+          cds.log(this.component).error("HTML5 Repo proxy error:", err.message);
           res.status(502).end("Bad Gateway");
         },
       });
@@ -89,7 +100,7 @@ class LocalHTML5Repo {
       app.use("/", html5RepoProxy);
 
       this.server = app.listen(this.port, () => {
-        console.log(`Local HTML5 repository running on port ${this.port}`);
+        cds.log(this.component).info(`Local HTML5 repository running on port ${this.port}`);
         resolve(this.server);
       });
     });
@@ -118,10 +129,8 @@ class LocalHTML5Repo {
 
   writeDefaultEnv() {
     const url = this.defaultEnv.VCAP_SERVICES["html5-apps-repo"][0].credentials.uri;
-
-    console.log(`Rewriting HTML5 Repo URL in default-env.json of approuter: ${url}`);
-
-    fs.writeFileSync(DEFAULT_ENV_PATH, JSON.stringify(this.defaultEnv, null, 2) + "\n");
+    cds.log(this.component).info(`Rewriting HTML5 Repo URL in default-env.json of approuter: ${url}`);
+    fs.writeFileSync(this.path, JSON.stringify(this.defaultEnv, null, 2) + "\n");
   }
 
   extractNameAndType(content) {

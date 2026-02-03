@@ -1,0 +1,27 @@
+{
+  "_version": "1.49.0",
+  "sap.app": {
+    "id": "test",
+    "applicationVersion": {
+      "version": "1.0.0"
+    },
+    "type": "application",
+    "title": "",
+    "description": "Test App",
+    "i18n": "i18n/i18n.properties",
+    "crossNavigation": {
+      "inbounds": {
+        "Test-display": {
+          "signature": {},
+          "title": "{{appTitle}}",
+          "subTitle": "{{appDescription}}",
+          "semanticObject": "Test",
+          "action": "display"
+        }
+      }
+    }
+  },
+  "sap.platform.cf": {
+    "oAuthScopes": ["$XSAPPNAME.Test"]
+  }
+}

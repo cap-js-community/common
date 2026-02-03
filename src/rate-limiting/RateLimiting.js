@@ -7,7 +7,7 @@ const redisResetTime = require("./redis/resetTime");
 
 const { connectionCheck } = require("./redis/common");
 
-const COMPONENT_NAME = "/cap-js-community-common/rateLimiting";
+const COMPONENT_NAME = "/cap-js-community-common/rate-limiting";
 
 class RateLimiting {
   constructor(service, { maxConcurrent, maxInWindow, window } = {}) {

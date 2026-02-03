@@ -1,0 +1,18 @@
+{
+  "VCAP_SERVICES": {
+    "html5-apps-repo": [
+      {
+        "credentials": {
+          "uri": "http://localhost:3000"
+        }
+      }
+    ]
+  },
+  "destinations": [
+    {
+      "name": "srv-api",
+      "url": "http://localhost:4004",
+      "forwardAuthToken": true
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "authenticationMethod": "route",
+  "routes": [
+    {
+      "source": "^/?odata/(.*)$",
+      "target": "/odata/$1",
+      "destination": "srv-api",
+      "csrfProtection": true
+    },
+    {
+      "source": "^(.*)$",
+      "service": "html5-apps-repo-rt",
+      "target": "$1"
+    }
+  ]
+}

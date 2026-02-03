@@ -4,7 +4,7 @@ const cds = require("@sap/cds");
 
 const { RedisClient } = require("../../redis-client");
 
-const COMPONENT_NAME = "/cap-js-community-common/rateLimiting";
+const COMPONENT_NAME = "/cap-js-community-common/rate-limiting";
 
 async function connectionCheck() {
   return await RedisClient.create(COMPONENT_NAME).connectionCheck();
