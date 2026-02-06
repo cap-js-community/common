@@ -432,8 +432,12 @@ The CDM Builder allows to build a CDM file `cdm.json` from apps, roles and porta
 
 - Build CDM: `cdm-build`
 
-The generated CDM is generated at `app/cdm.json` and can be included into HTML5 Repository automatically
-when copied at `resources/cdm.json` during build time.
+The generated CDM is (per default) generated at `app/cdm.json`.
+
+### Options:
+
+- `-f, --force`: Overwrite existing CDM file. Default is `false`
+- `-t, --target`: Specify target path for generated CDM file. Default is `app/cdm.json`
 
 ## Support, Feedback, Contributing
 
