@@ -19,7 +19,7 @@ program
   .version(packageJSON.version, "-v, --version")
   .usage("[options]")
   .option("-f, --force", "Force generation")
-  .addOption(new commander.Option("-t, --target <target>", "Target path"));
+  .option("-t, --target <target>", "Target path");
 
 program.unknownOption = function () {};
 program.parse(process.argv);
