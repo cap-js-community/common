@@ -31,13 +31,14 @@ exports[`CDM Builder Build 1`] = `
                 },
               },
               "tags": {
+                "keywords": [],
                 "technicalAttributes": [
                   "APPTYPE_HOMEPAGE",
                 ],
               },
             },
             "sap.integration": {
-              "urlTemplateId": "common-urltemplate.home",
+              "urlTemplateId": "common-urltemplate-home",
               "urlTemplateParams": {
                 "path": "",
               },
@@ -221,7 +222,7 @@ exports[`CDM Builder Build 1`] = `
         "_version": "3.2.0",
         "identification": {
           "entityType": "page",
-          "id": "common-page\`;",
+          "id": "common-page",
           "title": "{{title}}",
         },
         "payload": {
@@ -309,7 +310,7 @@ exports[`CDM Builder Build 1`] = `
         "payload": {
           "contentNodes": [
             {
-              "id": "common-page\`;",
+              "id": "common-page",
               "type": "page",
             },
           ],

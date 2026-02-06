@@ -15,7 +15,11 @@ process.argv = process.argv.map((arg) => {
   return arg.toLowerCase();
 });
 
-program.version(packageJSON.version, "-v, --version").usage("[options]").option("-f, --force", "Force generation");
+program
+  .version(packageJSON.version, "-v, --version")
+  .usage("[options]")
+  .option("-f, --force", "Force generation")
+  .option("-t, --target <target>", "Target path");
 
 program.unknownOption = function () {};
 program.parse(process.argv);

@@ -64,7 +64,7 @@ class CDMBuilder {
     this.addRoles(cdm, roles);
     if (!this.options.skipWrite) {
       fs.mkdirSync(path.dirname(this.targetPath), { recursive: true });
-      fs.writeFileSync(this.targetPath, JSON.stringify(cdm, null, 2));
+      fs.writeFileSync(this.targetPath, JSON.stringify(Object.values(cdm.payload).flat(), null, 2));
     }
     return cdm;
   }
@@ -171,7 +171,7 @@ class CDMBuilder {
     cdm.payload.spaces.push(space);
     let index = 1;
     for (const group of cdm.payload.groups || []) {
-      const pageId = `${this.namespace}-page${cdm.payload.groups.length > 1 ? `-${index++}` : ""}\`;`;
+      const pageId = `${this.namespace}-page${cdm.payload.groups.length > 1 ? `-${index++}` : ""}`;
       cdm.payload.pages.push({
         _version: this.version,
         identification: {
@@ -221,11 +221,12 @@ class CDMBuilder {
               },
             },
             tags: {
+              keywords: [],
               technicalAttributes: ["APPTYPE_HOMEPAGE"],
             },
           },
           "sap.integration": {
-            urlTemplateId: `${this.namespace}-urltemplate.home`,
+            urlTemplateId: `${this.namespace}-urltemplate-home`,
             urlTemplateParams: { path: "" },
           },
           "sap.ui": {
