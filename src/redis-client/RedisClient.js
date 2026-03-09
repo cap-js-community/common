@@ -128,7 +128,7 @@ class RedisClient {
       }
       return redis.createClient(socketOptions);
     } catch (err) {
-      throw new Error("Error during create client with redis-cache service" + err);
+      throw new Error("Error during create client with redis-cache service", err);
     }
   }
 
@@ -214,6 +214,9 @@ class RedisClient {
 
   async resilientClientClose(client) {
     try {
+      if (client?.close) {
+        await client.close();
+      }
       if (client?.quit) {
         await client.quit();
       }

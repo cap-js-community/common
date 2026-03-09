@@ -17,6 +17,7 @@ const client = {
       throw new Error("connect error");
     }
   }),
+  close: jest.fn(),
   quit: jest.fn(),
   on: jest.fn((event, cb) => {
     switch (event) {

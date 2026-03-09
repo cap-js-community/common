@@ -741,7 +741,7 @@ class ReplicationCacheEntry {
     selectQuery.replication = true;
     const chunkSize = this.cache.options.chunks;
     let offset = 0;
-    let entries = [];
+    let entries;
     do {
       entries = await srcTx.run(selectQuery.limit(chunkSize, offset));
       if (entries.length > 0) {
