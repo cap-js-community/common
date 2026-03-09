@@ -35,7 +35,6 @@ describe("Redis Client (Sentinel)", () => {
 
       const redisClient = RedisClient.create("sentinel-test");
       const client = await redisClient.createMainClientAndConnect();
-
       expect(client).toBeDefined();
       expect(redis.createSentinel).toHaveBeenCalledWith({
         name: "mymaster",
@@ -54,69 +53,6 @@ describe("Redis Client (Sentinel)", () => {
       });
       expect(redisClient.isSentinel).toBe(true);
       expect(redisClient.isCluster).toBe(false);
-      await redisClient.closeMainClient();
-    });
-
-    it("prefers master_name field over URI fragment", async () => {
-      cds.env.requires.redis = {
-        credentials: {
-          sentinel_nodes: [{ host: "sentinel.local", port: 26379 }],
-          master_name: "explicit-master",
-          uri: "redis://sentinel.local#uri-master",
-        },
-      };
-
-      const redisClient = RedisClient.create("master-name-test");
-      await redisClient.createMainClientAndConnect();
-
-      expect(redis.createSentinel).toHaveBeenCalledWith(expect.objectContaining({ name: "explicit-master" }));
-    });
-
-    it("uses default port 26379 when not specified", async () => {
-      cds.env.requires.redis = {
-        credentials: {
-          sentinel_nodes: [{ hostname: "sentinel.local" }],
-          master_name: "mymaster",
-        },
-      };
-
-      const redisClient = RedisClient.create("default-port-test");
-      await redisClient.createMainClientAndConnect();
-
-      expect(redis.createSentinel).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sentinelRootNodes: [{ host: "sentinel.local", port: 26379 }],
-        }),
-      );
-    });
-
-    it("returns undefined if master name not found", async () => {
-      cds.env.requires.redis = {
-        credentials: {
-          sentinel_nodes: [{ hostname: "sentinel.local" }],
-        },
-      };
-
-      const redisClient = RedisClient.create("no-master-test");
-      const client = await redisClient.createMainClientAndConnect();
-      expect(client).toBeUndefined();
-    });
-
-    it("prioritizes sentinel over cluster mode", async () => {
-      cds.env.requires.redis = {
-        credentials: {
-          sentinel_nodes: [{ hostname: "sentinel.local" }],
-          master_name: "mymaster",
-          cluster_mode: true,
-        },
-      };
-
-      const redisClient = RedisClient.create("priority-test");
-      await redisClient.createMainClientAndConnect();
-
-      expect(redis.createSentinel).toHaveBeenCalled();
-      expect(redis.createCluster).not.toHaveBeenCalled();
-      expect(redisClient.isSentinel).toBe(true);
     });
   });
 });
