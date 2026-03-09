@@ -111,7 +111,6 @@ class RedisClient {
       if (credentials?.sentinel_nodes?.length > 0) {
         return this.createSentinelClient(credentials, options, redisOptions);
       }
-
       const socket = {
         host: credentials?.hostname ?? "127.0.0.1",
         tls: !!credentials?.tls,

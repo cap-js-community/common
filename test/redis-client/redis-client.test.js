@@ -164,6 +164,7 @@ describe("Redis Client", () => {
       });
       expect(redisClient.isSentinel).toBe(true);
       expect(redisClient.isCluster).toBe(false);
+      await redisClient.closeMainClient();
     });
 
     it.skip("prefers master_name field over URI fragment", async () => {
