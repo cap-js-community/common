@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- Open dependencies to also allow Redis 5
+- Open dependencies to allow Redis 5
 
 ## Version 0.3.5 - 2026-02-03
 
