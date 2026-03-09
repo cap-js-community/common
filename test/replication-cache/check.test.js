@@ -103,7 +103,7 @@ describe("Check", () => {
     expect(cds.replicationCache.stats.counts["test.Books.texts"]).toBe(1);
     expect(cds.replicationCache.stats.counts["test.Authors"]).toBe(1);
 
-    expect(await cds.replicationCache.size()).toBe(65536);
+    expect(await cds.replicationCache.size()).toBe(40960);
     await wait(2 * interval);
     expect(await cds.replicationCache.size()).toBe(40960);
 

@@ -229,5 +229,3 @@ describe("Redis Client", () => {
     });
   });
 });
-
-

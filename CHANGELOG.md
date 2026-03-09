@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Version 0.4.0 - 2026-03-09
 
+### Added
+
+- Redis Sentinel Support
+
 ### Fixed
 
 - Open dependencies to allow Redis 5
