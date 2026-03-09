@@ -208,6 +208,9 @@ class RedisClient {
   subscribeChannels(options, errorHandlerCreateClient) {
     this.subscriberClientPromise = this.createClientAndConnect(options, errorHandlerCreateClient)
       .then((client) => {
+        if (!client) {
+          return;
+        }
         for (const channel in this.subscribedChannels) {
           const fn = this.subscribedChannels[channel];
           client._subscribedChannels ??= {};
