@@ -86,5 +86,17 @@ describe("Redis Client (Sentinel)", () => {
         }),
       );
     });
+
+    it("returns undefined if master name not found", async () => {
+      cds.env.requires.redis = {
+        credentials: {
+          sentinel_nodes: [{ hostname: "sentinel.local" }],
+        },
+      };
+
+      const redisClient = RedisClient.create("no-master-test");
+      const client = await redisClient.createMainClientAndConnect();
+      expect(client).toBeUndefined();
+    });
   });
 });
