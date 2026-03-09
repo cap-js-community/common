@@ -124,7 +124,7 @@ describe("Redis Client", () => {
     expect(result).toBeUndefined();
   });
 
-  describe.skip("Sentinel Mode", () => {
+  describe("Sentinel Mode", () => {
     beforeEach(async () => {
       jest.clearAllMocks();
       await RedisClient.closeAllClients();
@@ -166,7 +166,7 @@ describe("Redis Client", () => {
       expect(redisClient.isCluster).toBe(false);
     });
 
-    it("prefers master_name field over URI fragment", async () => {
+    it.skip("prefers master_name field over URI fragment", async () => {
       cds.env.requires.redis = {
         credentials: {
           sentinel_nodes: [{ host: "sentinel.local", port: 26379 }],
@@ -181,7 +181,7 @@ describe("Redis Client", () => {
       expect(redis.createSentinel).toHaveBeenCalledWith(expect.objectContaining({ name: "explicit-master" }));
     });
 
-    it("uses default port 26379 when not specified", async () => {
+    it.skip("uses default port 26379 when not specified", async () => {
       cds.env.requires.redis = {
         credentials: {
           sentinel_nodes: [{ hostname: "sentinel.local" }],
@@ -199,7 +199,7 @@ describe("Redis Client", () => {
       );
     });
 
-    it("returns undefined if master name not found", async () => {
+    it.skip("returns undefined if master name not found", async () => {
       cds.env.requires.redis = {
         credentials: {
           sentinel_nodes: [{ hostname: "sentinel.local" }],
@@ -211,7 +211,7 @@ describe("Redis Client", () => {
       expect(client).toBeUndefined();
     });
 
-    it("prioritizes sentinel over cluster mode", async () => {
+    it.skip("prioritizes sentinel over cluster mode", async () => {
       cds.env.requires.redis = {
         credentials: {
           sentinel_nodes: [{ hostname: "sentinel.local" }],
