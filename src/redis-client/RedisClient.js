@@ -52,27 +52,26 @@ class RedisClient {
   async createClientAndConnect(options, errorHandlerCreateClient, isConnectionCheck) {
     try {
       const client = this.createClientBase(options);
-      if (!client) {
-        return;
-      }
-      if (!isConnectionCheck) {
-        client.on("error", (err) => {
-          const dateNow = Date.now();
-          if (dateNow - this.lastErrorLog > LOG_AFTER_SEC * 1000) {
-            this.log.error("Error from redis client", err);
-            this.lastErrorLog = dateNow;
-          }
-        });
+      if (client) {
+        if (!isConnectionCheck) {
+          client.on("error", (err) => {
+            const dateNow = Date.now();
+            if (dateNow - this.lastErrorLog > LOG_AFTER_SEC * 1000) {
+              this.log.error("Error from redis client", err);
+              this.lastErrorLog = dateNow;
+            }
+          });
 
-        client.on("reconnecting", () => {
-          const dateNow = Date.now();
-          if (dateNow - this.lastErrorLog > LOG_AFTER_SEC * 1000) {
-            this.log.info("Redis client trying reconnect...");
-            this.lastErrorLog = dateNow;
-          }
-        });
+          client.on("reconnecting", () => {
+            const dateNow = Date.now();
+            if (dateNow - this.lastErrorLog > LOG_AFTER_SEC * 1000) {
+              this.log.info("Redis client trying reconnect...");
+              this.lastErrorLog = dateNow;
+            }
+          });
+        }
+        await client.connect();
       }
-      await client.connect();
       return client;
     } catch (err) {
       errorHandlerCreateClient(err);
@@ -277,8 +276,7 @@ class RedisClient {
     try {
       if (client?.close) {
         await client.close();
-      }
-      if (client?.quit) {
+      } else if (client?.quit) {
         await client.quit();
       }
     } catch (err) {

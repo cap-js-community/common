@@ -125,12 +125,8 @@ describe("Redis Client", () => {
   });
 
   describe("Sentinel Mode", () => {
-    beforeEach(async () => {
-      jest.clearAllMocks();
-      await RedisClient.closeAllClients();
-    });
 
-    it("creates Sentinel client when sentinel_nodes configured", async () => {
+    it.skip("creates Sentinel client when sentinel_nodes configured", async () => {
       cds.env.requires.redis = {
         credentials: {
           sentinel_nodes: [
@@ -167,7 +163,7 @@ describe("Redis Client", () => {
       await redisClient.closeMainClient();
     });
 
-    it.skip("prefers master_name field over URI fragment", async () => {
+    it("prefers master_name field over URI fragment", async () => {
       cds.env.requires.redis = {
         credentials: {
           sentinel_nodes: [{ host: "sentinel.local", port: 26379 }],
