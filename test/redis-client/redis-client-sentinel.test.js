@@ -54,6 +54,21 @@ describe("Redis Client (Sentinel)", () => {
       expect(redisClient.isCluster).toBe(false);
     });
 
+    it("prefers master_name field over URI fragment", async () => {
+      cds.env.requires.redis = {
+        credentials: {
+          sentinel_nodes: [{ host: "sentinel.local", port: 26379 }],
+          master_name: "explicit-master",
+          uri: "redis://sentinel.local#uri-master",
+        },
+      };
+
+      const redisClient = RedisClient.create("master-name-test");
+      await redisClient.createMainClientAndConnect();
+
+      expect(redis.createSentinel).toHaveBeenCalledWith(expect.objectContaining({ name: "explicit-master" }));
+    });
+
     it("uses default port 26379 when not specified", async () => {
       cds.env.requires.redis = {
         credentials: {
