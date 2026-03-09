@@ -18,6 +18,7 @@ const client = {
     }
   }),
   close: jest.fn(),
+  quit: jest.fn(),
   on: jest.fn((event, cb) => {
     switch (event) {
       case "message":

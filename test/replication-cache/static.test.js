@@ -19,7 +19,7 @@ describe("Static", () => {
 
   it("GET via db", async () => {
     await cds.tx({ tenant: "t1" }, async (tx) => {
-      let result = await tx.run(SELECT.from("test.Enum", ["name", "descr"]));
+      const result = await tx.run(SELECT.from("test.Enum", ["name", "descr"]));
       expect(result.length).toBe(6);
       for (const row of result) {
         expect(row.name).toEqual(expect.any(String));
@@ -30,7 +30,7 @@ describe("Static", () => {
       expect(cds.replicationCache.entries.get(undefined)).toBeDefined();
       expect(cds.replicationCache.entries.get("t1")).not.toBeDefined();
 
-      result = await tx.run(SELECT.from("test.EnumView", ["name", "descr"]));
+      await tx.run(SELECT.from("test.EnumView", ["name", "descr"]));
       expect(cds.replicationCache.entries.get("t1")).toBeDefined();
     });
   });
