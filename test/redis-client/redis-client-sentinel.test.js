@@ -19,7 +19,6 @@ describe("Redis Client (Sentinel)", () => {
   });
 
   describe("Sentinel Mode", () => {
-
     it("creates Sentinel client when sentinel_nodes configured", async () => {
       cds.env.requires.redis = {
         credentials: {
@@ -53,6 +52,24 @@ describe("Redis Client (Sentinel)", () => {
       });
       expect(redisClient.isSentinel).toBe(true);
       expect(redisClient.isCluster).toBe(false);
+    });
+
+    it("uses default port 26379 when not specified", async () => {
+      cds.env.requires.redis = {
+        credentials: {
+          sentinel_nodes: [{ hostname: "sentinel.local" }],
+          master_name: "mymaster",
+        },
+      };
+
+      const redisClient = RedisClient.create("default-port-test");
+      await redisClient.createMainClientAndConnect();
+
+      expect(redis.createSentinel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sentinelRootNodes: [{ host: "sentinel.local", port: 26379 }],
+        }),
+      );
     });
   });
 });
