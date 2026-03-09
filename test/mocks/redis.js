@@ -17,7 +17,7 @@ const client = {
       throw new Error("connect error");
     }
   }),
-  quit: jest.fn(),
+  close: jest.fn(),
   on: jest.fn((event, cb) => {
     switch (event) {
       case "message":
@@ -113,6 +113,14 @@ module.exports = {
     if (createClientError) {
       createClientError = false;
       throw new Error("create cluster error");
+    }
+    client.options = options;
+    return client;
+  }),
+  createSentinel: jest.fn((options) => {
+    if (createClientError) {
+      createClientError = false;
+      throw new Error("create sentinel error");
     }
     client.options = options;
     return client;
