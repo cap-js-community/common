@@ -118,6 +118,14 @@ module.exports = {
     client.options = options;
     return client;
   }),
+  createSentinel: jest.fn((options) => {
+    if (createClientError) {
+      createClientError = false;
+      throw new Error("create sentinel error");
+    }
+    client.options = options;
+    return client;
+  }),
   commandOptions: jest.fn(() => {
     return {};
   }),

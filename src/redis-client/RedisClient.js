@@ -9,6 +9,7 @@ const TIMEOUT_SHUTDOWN = 2500;
 
 class RedisClient {
   #clusterClient = false;
+  #sentinelClient = false;
   #beforeCloseHandler;
   constructor(name, env) {
     this.name = name;
@@ -105,20 +106,25 @@ class RedisClient {
   createClientBase(redisOptions = {}) {
     const { credentials, options } =
       (this.env ? cds.env.requires[`redis-${this.env}`] : undefined) || cds.env.requires["redis"] || {};
-    const socket = {
-      host: credentials?.hostname ?? "127.0.0.1",
-      tls: !!credentials?.tls,
-      port: credentials?.port ?? 6379,
-      ...options?.socket,
-      ...redisOptions.socket,
-    };
-    const socketOptions = {
-      ...options,
-      ...redisOptions,
-      password: redisOptions?.password ?? options?.password ?? credentials?.password,
-      socket,
-    };
+
     try {
+      if (credentials?.sentinel_nodes?.length > 0) {
+        return this.createSentinelClient(credentials, options, redisOptions);
+      }
+
+      const socket = {
+        host: credentials?.hostname ?? "127.0.0.1",
+        tls: !!credentials?.tls,
+        port: credentials?.port ?? 6379,
+        ...options?.socket,
+        ...redisOptions.socket,
+      };
+      const socketOptions = {
+        ...options,
+        ...redisOptions,
+        password: redisOptions?.password ?? options?.password ?? credentials?.password,
+        socket,
+      };
       if (credentials?.cluster_mode) {
         this.#clusterClient = true;
         return redis.createCluster({
@@ -130,6 +136,59 @@ class RedisClient {
     } catch (err) {
       throw new Error("Error during create client with redis-cache service", err);
     }
+  }
+
+  createSentinelClient(credentials, options, redisOptions) {
+    const masterName = this.extractMasterName(credentials);
+    const sentinelNodes = credentials.sentinel_nodes.map((node) => ({
+      host: node.host ?? node.hostname,
+      port: node.port ?? 26379,
+    }));
+    const clientOptions = {
+      ...options,
+      ...redisOptions,
+      password: redisOptions?.password ?? options?.password ?? credentials?.password,
+      socket: {
+        tls: !!credentials?.tls,
+        ...options?.socket,
+        ...redisOptions?.socket,
+      },
+    };
+    this.#sentinelClient = true;
+    this.log.info("Creating Redis Sentinel client", { masterName, nodeCount: sentinelNodes.length });
+    return redis.createSentinel({
+      name: masterName,
+      sentinelRootNodes: sentinelNodes,
+      nodeClientOptions: clientOptions,
+      sentinelClientOptions: clientOptions,
+      passthroughClientErrorEvents: true,
+    });
+  }
+
+  /**
+   * Extracts the Sentinel master name from credentials.
+   * Priority: master_name field > URI fragment
+   * @param {Object} credentials - Redis credentials
+   * @returns {string} Master name
+   * @throws {Error} If master name cannot be determined
+   */
+  extractMasterName(credentials) {
+    if (credentials?.master_name) {
+      return credentials.master_name;
+    }
+    if (credentials?.uri) {
+      try {
+        const url = new URL(credentials.uri);
+        if (url.hash && url.hash.length > 1) {
+          return url.hash.slice(1);
+        }
+      } catch (e) {
+        this.log.warn("Failed to parse master name from URI", e.message);
+      }
+    }
+    throw new Error(
+      "Redis Sentinel master name not found. Provide credentials.master_name or include #mastername in credentials.uri",
+    );
   }
 
   subscribeChannel(options, channel, subscribeHandler) {
@@ -249,6 +308,10 @@ class RedisClient {
 
   get isCluster() {
     return this.#clusterClient;
+  }
+
+  get isSentinel() {
+    return this.#sentinelClient;
   }
 
   static create(name = "default", env) {

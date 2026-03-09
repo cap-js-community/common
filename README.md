@@ -399,6 +399,31 @@ const mainClient = await RedisClient.create().createMainClientAndConnect(options
 
 For details on Redis `createClient` configuration options see [Redis Client Configuration](https://github.com/redis/node-redis/blob/master/docs/client-configuration.md).
 
+### Redis Sentinel Support
+
+Redis Sentinel mode is activated when `credentials.sentinel_nodes` is present and takes priority over cluster mode.
+
+```json
+{
+  "cds": {
+    "requires": {
+      "redis": {
+        "credentials": {
+          "sentinel_nodes": [
+            { "host": "sentinel1.example.com", "port": 26379 },
+            { "host": "sentinel2.example.com", "port": 26379 }
+          ],
+          "master_name": "myprimary"
+        }
+      }
+    }
+  }
+}
+```
+
+The `master_name` identifies which Redis master the Sentinels monitor. Alternatively, the master name can be provided as a URI fragment in `credentials.uri` (e.g., `redis://host#myprimary`).
+If `sentinel_nodes[].port` is omitted, it defaults to `26379`. Both `host` and `hostname` are accepted for node addresses.
+
 ## Local HTML5 Repository
 
 Developing HTML5 apps against hybrid environments including Approuter component requires a local HTML5 repository to directly test the changes to UI5 applications without deployment to a remote HTML5 repository.
