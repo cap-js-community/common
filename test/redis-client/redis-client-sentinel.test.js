@@ -19,6 +19,23 @@ describe("Redis Client (Sentinel)", () => {
   });
 
   describe("Sentinel Mode", () => {
+    it("prioritizes sentinel over cluster mode", async () => {
+      cds.env.requires.redis = {
+        credentials: {
+          sentinel_nodes: [{ hostname: "sentinel.local" }],
+          master_name: "mymaster",
+          cluster_mode: true,
+        },
+      };
+
+      const redisClient = RedisClient.create("priority-test");
+      await redisClient.createMainClientAndConnect();
+
+      expect(redis.createSentinel).toHaveBeenCalled();
+      expect(redis.createCluster).not.toHaveBeenCalled();
+      expect(redisClient.isSentinel).toBe(true);
+    });
+
     it("creates Sentinel client when sentinel_nodes configured", async () => {
       cds.env.requires.redis = {
         credentials: {
