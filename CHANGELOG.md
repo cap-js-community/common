@@ -5,14 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## Version 0.4.0 - 2026-03-09
+## Version 0.4.0 - 2026-03-10
 
 ### Added
 
 - Redis Sentinel Support
-
-### Fixed
-
 - Open dependencies to allow Redis 5
 
 ## Version 0.3.5 - 2026-02-03
