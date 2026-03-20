@@ -274,7 +274,11 @@ class CDMBuilder {
               {
                 navMode: "explace",
                 urlTemplateId: `${this.namespace}-urltemplate`,
-                urlTemplateParams: { path: "" },
+                urlTemplateParams: {
+                  path: "",
+                  semanticObject: app.defaultNavigation?.semanticObject,
+                  action: app.defaultNavigation?.action,
+                },
               },
             ],
             "sap.ui": { icons: { icon } },
@@ -398,12 +402,14 @@ class CDMBuilder {
       }
       const crossNavigation = manifest["sap.app"]?.crossNavigation || {};
       const defaultViz = Object.keys(crossNavigation.inbounds || {})[0];
+      const defaultNavigation = crossNavigation.inbounds?.[defaultViz];
       const scopes = manifest["sap.platform.cf"]?.oAuthScopes?.map((s) => this.localScope(s)) || [];
       const i18n = this.loadI18n(path.join(appRoot, dir, "webapp", "i18n"));
       apps.push({
         id: appId,
         appId,
         defaultViz,
+        defaultNavigation,
         crossNavigation,
         scopes,
         i18n,

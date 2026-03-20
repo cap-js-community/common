@@ -109,7 +109,9 @@ exports[`CDM Builder Build 1`] = `
                 "navMode": "explace",
                 "urlTemplateId": "common-urltemplate",
                 "urlTemplateParams": {
+                  "action": "display",
                   "path": "",
+                  "semanticObject": "Test",
                 },
               },
             ],
