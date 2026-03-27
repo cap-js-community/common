@@ -379,8 +379,10 @@ exports[`CDM Builder Build 1`] = `
           "parameters": {
             "mergeWith": "/urlTemplates/urltemplate.base/payload/parameters/names",
             "names": {
+              "action": "{./sap.integration/urlTemplateParams/action}",
               "intentParameters": "{*}",
               "path": "{./sap.integration/urlTemplateParams/path}",
+              "semanticObject": "{./sap.integration/urlTemplateParams/semanticObject}",
             },
           },
           "urlTemplate": "{+_baseUrl}{+path}#{+semanticObject}-{+action}{?intentParameters*}",

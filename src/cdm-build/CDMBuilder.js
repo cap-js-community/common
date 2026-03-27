@@ -307,10 +307,20 @@ class CDMBuilder {
       {
         id: `${this.namespace}-urltemplate-home`,
         template: "{+_baseUrl}{+path}#Shell-home{?intentParameters*}",
+        names: {
+          path: "{./sap.integration/urlTemplateParams/path}",
+          intentParameters: "{*}",
+        },
       },
       {
         id: `${this.namespace}-urltemplate`,
         template: "{+_baseUrl}{+path}#{+semanticObject}-{+action}{?intentParameters*}",
+        names: {
+          path: "{./sap.integration/urlTemplateParams/path}",
+          semanticObject: "{./sap.integration/urlTemplateParams/semanticObject}",
+          action: "{./sap.integration/urlTemplateParams/action}",
+          intentParameters: "{*}",
+        },
       },
     ];
     for (const template of templates) {
@@ -326,10 +336,7 @@ class CDMBuilder {
           urlTemplate: template.template,
           parameters: {
             mergeWith: "/urlTemplates/urltemplate.base/payload/parameters/names",
-            names: {
-              path: "{./sap.integration/urlTemplateParams/path}",
-              intentParameters: "{*}",
-            },
+            names: template.names,
           },
           capabilities: { navigationMode: "standalone" },
         },
