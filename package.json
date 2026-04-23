@@ -58,7 +58,7 @@
   },
   "devDependencies": {
     "@cap-js-community/common": "./",
-    "@cap-js/cds-test": "^0.4.1",
+    "@cap-js/cds-test": "^1.0.0",
     "@cap-js/sqlite": "^2.2.0",
     "@sap/cds": "^9.8.4",
     "@sap/cds-common-content": "^3.1.0",
