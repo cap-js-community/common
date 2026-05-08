@@ -2,13 +2,10 @@
 
 /* eslint-disable n/no-process-exit */
 
-// Suppress deprecation warning in Node 22 due to http-proxy using util._extend()
-require("util")._extend = Object.assign;
-
+const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
-const { createProxyMiddleware } = require("http-proxy-middleware");
 const cds = require("@sap/cds");
 
 const DEFAULT_ENV_NAME = "default-env.json";
@@ -85,19 +82,25 @@ class LocalHTML5Repo {
       });
 
       // Forward everything else to the original HTML5 Apps Repo
-      const html5RepoProxy = createProxyMiddleware({
-        target: this.originalHtmlRepoUrl,
-        changeOrigin: true,
-        ws: true,
-        logLevel: "warn",
-        onError(err, req, res) {
+      app.use("/", (req, res) => {
+        const target = new URL(this.originalHtmlRepoUrl);
+        const options = {
+          hostname: target.hostname,
+          port: target.port,
+          path: req.originalUrl,
+          method: req.method,
+          headers: { ...req.headers, host: target.host },
+        };
+        const proxyReq = http.request(options, (proxyRes) => {
+          res.writeHead(proxyRes.statusCode, proxyRes.headers);
+          proxyRes.pipe(res);
+        });
+        proxyReq.on("error", (err) => {
           cds.log(this.component).error("HTML5 Repo proxy error:", err.message);
           res.status(502).end("Bad Gateway");
-        },
+        });
+        req.pipe(proxyReq);
       });
-
-      // Catch-all proxy (must be last)
-      app.use("/", html5RepoProxy);
 
       this.server = app.listen(this.port, () => {
         cds.log(this.component).info(`Local HTML5 repository running on port ${this.port}`);
