@@ -814,6 +814,7 @@ async function createDB(DBService, tenant, model, options) {
     const templateDatabase = await dbPath(Tenant.Template, options);
     await fs.copyFile(templateDatabase, filePath);
   }
+  const isMemory = filePath === Constants.InMemory;
   const db = new DBService(tenant ?? Tenant.Default, model, {
     kind: "sqlite",
     impl: "@cap-js/sqlite",
@@ -822,6 +823,9 @@ async function createDB(DBService, tenant, model, options) {
       ...options.credentials,
       database: filePath,
     },
+    pool: isMemory
+      ? { max: 1, min: 1, evictionRunIntervalMillis: 0 }
+      : options.pool,
   });
   await db.init();
   if (options.deploy && (filePath === Constants.InMemory || tenant === Tenant.Template)) {
