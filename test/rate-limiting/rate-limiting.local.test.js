@@ -18,7 +18,7 @@ describe("Rate Limiting", () => {
 
   beforeEach(async () => {
     await data.reset();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     await rateLimiting.clearInWindow();
   });
 

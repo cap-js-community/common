@@ -2,9 +2,8 @@
 
 const cds = require("@sap/cds");
 
-const redis = require("redis");
 require("../mocks/redis");
-jest.mock("redis", () => require("../mocks/redis"));
+const redis = require("redis");
 
 const { test } = cds.test(__dirname + "/../..");
 
