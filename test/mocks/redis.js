@@ -11,15 +11,15 @@ let subscribeError = false;
 let counter = {};
 
 const client = {
-  connect: jest.fn(() => {
+  connect: vi.fn(() => {
     if (connectError) {
       connectError = false;
       throw new Error("connect error");
     }
   }),
-  close: jest.fn(),
-  quit: jest.fn(),
-  on: jest.fn((event, cb) => {
+  close: vi.fn(),
+  quit: vi.fn(),
+  on: vi.fn((event, cb) => {
     switch (event) {
       case "message":
         onMessage.push(cb);
@@ -32,29 +32,29 @@ const client = {
         break;
     }
   }),
-  xRead: jest.fn(() => {
+  xRead: vi.fn(() => {
     return Promise.resolve([{ messages: [] }]);
   }),
-  xAdd: jest.fn(() => {
+  xAdd: vi.fn(() => {
     return Promise.resolve();
   }),
-  off: jest.fn(),
-  get: jest.fn((key) => {
+  off: vi.fn(),
+  get: vi.fn((key) => {
     return counter[key];
   }),
-  set: jest.fn((key, value) => {
+  set: vi.fn((key, value) => {
     counter[key] = value;
     return "OK";
   }),
-  incr: jest.fn((key) => {
+  incr: vi.fn((key) => {
     counter[key]++;
     return counter[key];
   }),
-  decr: jest.fn((key) => {
+  decr: vi.fn((key) => {
     counter[key]--;
     return counter[key];
   }),
-  subscribe: jest.fn((channel, cb) => {
+  subscribe: vi.fn((channel, cb) => {
     if (subscribeError) {
       subscribeError = false;
       throw new Error("subscribe error");
@@ -62,11 +62,11 @@ const client = {
     onSubscribe.push(cb);
     return Promise.resolve();
   }),
-  sSubscribe: jest.fn(),
-  pSubscribe: jest.fn(),
-  unsubscribe: jest.fn(),
-  pUnsubscribe: jest.fn(),
-  publish: jest.fn((channel, message) => {
+  sSubscribe: vi.fn(),
+  pSubscribe: vi.fn(),
+  unsubscribe: vi.fn(),
+  pUnsubscribe: vi.fn(),
+  publish: vi.fn((channel, message) => {
     for (const on of onMessage) {
       on(channel, message);
     }
@@ -75,12 +75,12 @@ const client = {
     }
     return Promise.resolve();
   }),
-  error: jest.fn((err) => {
+  error: vi.fn((err) => {
     for (const on of onError) {
       on(err);
     }
   }),
-  reconnect: jest.fn((err) => {
+  reconnect: vi.fn((err) => {
     for (const on of onReconnecting) {
       on(err);
     }
@@ -102,7 +102,7 @@ module.exports = {
         break;
     }
   },
-  createClient: jest.fn((options) => {
+  createClient: vi.fn((options) => {
     if (createClientError) {
       createClientError = false;
       throw new Error("create client error");
@@ -110,7 +110,7 @@ module.exports = {
     client.options = options;
     return client;
   }),
-  createCluster: jest.fn((options) => {
+  createCluster: vi.fn((options) => {
     if (createClientError) {
       createClientError = false;
       throw new Error("create cluster error");
@@ -118,7 +118,7 @@ module.exports = {
     client.options = options;
     return client;
   }),
-  createSentinel: jest.fn((options) => {
+  createSentinel: vi.fn((options) => {
     if (createClientError) {
       createClientError = false;
       throw new Error("create sentinel error");
@@ -126,7 +126,17 @@ module.exports = {
     client.options = options;
     return client;
   }),
-  commandOptions: jest.fn(() => {
+  commandOptions: vi.fn(() => {
     return {};
   }),
+};
+
+const resolvedRedis = require.resolve("redis");
+require.cache[resolvedRedis] = {
+  id: resolvedRedis,
+  filename: resolvedRedis,
+  loaded: true,
+  exports: module.exports,
+  children: [],
+  paths: [],
 };

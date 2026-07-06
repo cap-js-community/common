@@ -3,7 +3,6 @@
 const cds = require("@sap/cds");
 
 require("../mocks/redis");
-jest.mock("redis", () => require("../mocks/redis"));
 
 process.env.PORT = 0; // Random
 
@@ -20,7 +19,7 @@ describe("Rate Limiting", () => {
 
   beforeEach(async () => {
     await data.reset();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     await rateLimiting.clearInWindow();
   });
 

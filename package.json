@@ -35,8 +35,9 @@
   },
   "scripts": {
     "start": "cds-serve",
-    "test": "jest --runInBand",
-    "test:update": "npm test -- -u",
+    "test": "vitest run --coverage",
+    "test:update": "vitest run --coverage -u",
+    "test:watch": "vitest",
     "lint": "npm run lint:eslint && npm run lint:prettier",
     "lint:prettier": "prettier \"**/*.{js,json,md,yml,yaml,html}\" --write --log-level error",
     "lint:eslint": "eslint . --fix",
@@ -62,15 +63,14 @@
     "@sap/cds": "^10.0.3",
     "@sap/cds-common-content": "^3.2.0",
     "@sap/cds-dk": "^10.0.3",
+    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/eslint-plugin": "^1.6.21",
     "eslint": "^10.6.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-jest": "^29.15.3",
     "eslint-plugin-n": "^18.2.1",
-    "jest": "^30.4.2",
-    "jest-html-reporters": "^3.1.7",
-    "jest-junit": "^17.0.0",
     "prettier": "^3.9.1",
-    "shelljs": "^0.10.0"
+    "shelljs": "^0.10.0",
+    "vitest": "^4.1.10"
   },
   "cds": {
     "requires": {
