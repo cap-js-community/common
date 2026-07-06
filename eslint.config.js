@@ -64,14 +64,9 @@ module.exports = [
         ...vitestPlugin.environments.env.globals,
       },
     },
-  },
-  {
-    files: ["test/**/*.js"],
     rules: {
       "vitest/no-conditional-expect": ["off"],
       "vitest/no-disabled-tests": ["off"],
-      // The rule doesn't recognize asymmetric matchers like expect.any() or
-      // expect.stringMatching(), which we use extensively.
       "vitest/valid-expect": ["off"],
     },
   },
