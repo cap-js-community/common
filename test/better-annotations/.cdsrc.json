@@ -1,0 +1,13 @@
+{
+  "cds": {
+    "betterAnnotations": true,
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "database": ":memory:"
+        }
+      }
+    }
+  }
+}
