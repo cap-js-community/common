@@ -178,6 +178,30 @@ describe("Better Annotations", () => {
       expect(raw).toContain("__fc_can_reject");
     });
 
+    it("Fiori Books app exposes bound publish action with OperationAvailable", async () => {
+      const { data } = await GET(`${SERVICE_PATH}/$metadata?$format=json`, {
+        auth: { username: "admin", password: "admin" },
+      });
+      const raw = JSON.stringify(data);
+      expect(raw).toContain("publish");
+      expect(raw).toContain("__fc_can_publish");
+      expect(raw).toContain("OperationAvailable");
+    });
+
+    it("Books bound publish action availability is computed per instance", async () => {
+      const { data } = await GET(`${SERVICE_PATH}/Books`, {
+        auth: { username: "employee", password: "employee" },
+      });
+      expect(data.value.length).toBeGreaterThan(0);
+      for (const item of data.value) {
+        if (item.createdBy === "employee") {
+          expect(item.__fc_can_publish).toBe(true);
+        } else {
+          expect(item.__fc_can_publish).toBe(false);
+        }
+      }
+    });
+
     it("singleton exposes can_Tickets_approve for manager", async () => {
       const { data } = await GET(`${SERVICE_PATH}/BetterAnnotationsConfig`, {
         auth: { username: "manager", password: "manager" },

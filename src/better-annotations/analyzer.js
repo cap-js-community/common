@@ -37,13 +37,17 @@ function expandGrants(grants) {
  *   - "$user.<attr> = <field>" / "<field> = $user.<attr>"
  */
 function parseWhere(where) {
-  if (!where || typeof where !== "string") {return null;}
+  if (!where || typeof where !== "string") {
+    return null;
+  }
 
   const cleaned = where.trim().replace(/[()]/g, "");
 
   // Pattern: <field> = $user[.attr]  OR  $user[.attr] = <field>
   const match = cleaned.match(/^(\$user(?:\.\w+)?)\s*=\s*(\w+(?:\.\w+)*)$|^(\w+(?:\.\w+)*)\s*=\s*(\$user(?:\.\w+)?)$/);
-  if (!match) {return null;}
+  if (!match) {
+    return null;
+  }
 
   let userRef, fieldRef;
   if (match[1]) {
@@ -77,7 +81,9 @@ function analyzeRestrictions(restrictArray) {
     result[op] = { unconditionalRoles: [], conditionalGrants: [] };
   }
 
-  if (!Array.isArray(restrictArray)) {return result;}
+  if (!Array.isArray(restrictArray)) {
+    return result;
+  }
 
   for (const entry of restrictArray) {
     const grants = expandGrants(entry.grant || []);
@@ -85,7 +91,9 @@ function analyzeRestrictions(restrictArray) {
     const where = entry.where || null;
 
     for (const op of OPERATIONS) {
-      if (!grants.has(op)) {continue;}
+      if (!grants.has(op)) {
+        continue;
+      }
 
       if (where) {
         for (const role of roles) {
@@ -119,7 +127,9 @@ function analyzeActionRestrictions(restrictArray) {
   const actions = {};
   const wildcardRoles = []; // roles with grant: '*' (applies to all actions)
 
-  if (!Array.isArray(restrictArray)) {return actions;}
+  if (!Array.isArray(restrictArray)) {
+    return actions;
+  }
 
   // First pass: collect wildcard roles and action-specific grants
   for (const entry of restrictArray) {
@@ -133,14 +143,20 @@ function analyzeActionRestrictions(restrictArray) {
       // Wildcard grants apply to all actions
       if (upper === "*") {
         if (!where) {
-          for (const role of roles) {wildcardRoles.push(role);}
-          if (roles.length === 0) {wildcardRoles.push("*");}
+          for (const role of roles) {
+            wildcardRoles.push(role);
+          }
+          if (roles.length === 0) {
+            wildcardRoles.push("*");
+          }
         }
         continue;
       }
 
       // Skip standard CRUD/WRITE
-      if (["CREATE", "READ", "UPDATE", "DELETE", "WRITE"].includes(upper)) {continue;}
+      if (["CREATE", "READ", "UPDATE", "DELETE", "WRITE"].includes(upper)) {
+        continue;
+      }
 
       // This is a custom action name
       if (!actions[grant]) {

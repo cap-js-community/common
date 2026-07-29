@@ -22,13 +22,19 @@ class BetterAnnotations {
     });
 
     cds.on("serving", (service) => {
-      if (!this.metadata) {return;}
+      if (!this.metadata) {
+        return;
+      }
       const svcMeta = this.metadata.services[service.name];
-      if (!svcMeta) {return;}
+      if (!svcMeta) {
+        return;
+      }
 
       const hasSingleton = Object.keys(svcMeta.singletonFields).length > 0;
       const hasVirtual = Object.keys(svcMeta.virtualFields).length > 0;
-      if (!hasSingleton && !hasVirtual) {return;}
+      if (!hasSingleton && !hasVirtual) {
+        return;
+      }
 
       registerHandlers(service, svcMeta);
       this.log.info("Registered handlers for", service.name);

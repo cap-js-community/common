@@ -31,7 +31,9 @@ function hasUIAnnotations(def) {
  * Handles both plain entities and projection entities (adds to projection.columns too).
  */
 function addVirtualElement(def, fieldName) {
-  if (!def.elements) {def.elements = {};}
+  if (!def.elements) {
+    def.elements = {};
+  }
   def.elements[fieldName] = {
     "@Core.Computed": true,
     virtual: true,
@@ -41,7 +43,9 @@ function addVirtualElement(def, fieldName) {
 
   // For projection entities, also add to projection.columns
   if (def.projection) {
-    if (!def.projection.columns) {def.projection.columns = ["*"];}
+    if (!def.projection.columns) {
+      def.projection.columns = ["*"];
+    }
     def.projection.columns.push({
       virtual: true,
       as: fieldName,
@@ -94,18 +98,30 @@ function enhanceModel(model) {
   const serviceEntities = {};
 
   for (const [fqn, def] of Object.entries(model.definitions)) {
-    if (def.kind !== "entity") {continue;}
-    if (!def["@restrict"]) {continue;}
-    if (!hasUIAnnotations(def)) {continue;}
+    if (def.kind !== "entity") {
+      continue;
+    }
+    if (!def["@restrict"]) {
+      continue;
+    }
+    if (!hasUIAnnotations(def)) {
+      continue;
+    }
 
     const svcName = serviceName(fqn);
-    if (!svcName) {continue;}
+    if (!svcName) {
+      continue;
+    }
 
     // Check service exists
     const svcDef = model.definitions[svcName];
-    if (!svcDef || svcDef.kind !== "service") {continue;}
+    if (!svcDef || svcDef.kind !== "service") {
+      continue;
+    }
 
-    if (!serviceEntities[svcName]) {serviceEntities[svcName] = [];}
+    if (!serviceEntities[svcName]) {
+      serviceEntities[svcName] = [];
+    }
     serviceEntities[svcName].push({ fqn, def, entityName: shortName(fqn) });
   }
 
@@ -178,7 +194,9 @@ function enhanceModel(model) {
             def[capAnno] = { "=": fcField };
 
             // Store metadata for handler registration
-            if (!svcMeta.virtualFields[fqn]) {svcMeta.virtualFields[fqn] = [];}
+            if (!svcMeta.virtualFields[fqn]) {
+              svcMeta.virtualFields[fqn] = [];
+            }
             svcMeta.virtualFields[fqn].push({
               field: fcField,
               op,
@@ -204,7 +222,9 @@ function enhanceModel(model) {
           }
 
           const actionAnalysis = actionRestrictions[actionName];
-          if (!actionAnalysis) {continue;}
+          if (!actionAnalysis) {
+            continue;
+          }
 
           const strategy = determineStrategy(actionAnalysis);
 
@@ -245,7 +265,9 @@ function enhanceModel(model) {
               actionDef["@Core.OperationAvailable"] = { "=": `$self.${fcField}` };
 
               // Store for handler
-              if (!svcMeta.virtualFields[fqn]) {svcMeta.virtualFields[fqn] = [];}
+              if (!svcMeta.virtualFields[fqn]) {
+                svcMeta.virtualFields[fqn] = [];
+              }
               svcMeta.virtualFields[fqn].push({
                 field: fcField,
                 op: actionName,
@@ -289,7 +311,9 @@ function enhanceModel(model) {
       } else {
         // Singleton already exists — add our fields
         const existing = model.definitions[singletonFqn];
-        if (!existing.elements) {existing.elements = {};}
+        if (!existing.elements) {
+          existing.elements = {};
+        }
         for (const fieldName of Object.keys(svcMeta.singletonFields)) {
           if (!existing.elements[fieldName]) {
             existing.elements[fieldName] = { type: "cds.Boolean" };

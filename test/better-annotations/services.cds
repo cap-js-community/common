@@ -62,9 +62,13 @@ service TestBetterAnnotationsService {
   @restrict: [
     { grant: ['READ'], to: ['Employee', 'Admin'] },
     { grant: ['*'], to: ['Admin'] },
+    { grant: ['publish'], to: ['Employee'], where: 'createdBy = $user.id' },
     { grant: ['UPDATE', 'DELETE'], to: ['Employee'], where: 'createdBy = $user.id' }
   ]
-  entity Books as projection on db.Books;
+  @odata.draft.enabled
+  entity Books as projection on db.Books actions {
+    action publish();
+  };
 
   // Case 9: Composition child — Pages. CREATE/UPDATE/DELETE only if user owns parent Book
   @restrict: [
@@ -110,7 +114,13 @@ annotate TestBetterAnnotationsService.ReadOnlyItems with @UI.LineItem: [
 
 // Composition test: Books with Pages (parent-path where clause)
 annotate TestBetterAnnotationsService.Books with @UI.LineItem: [
-  { Value: title }
+  { Value: title },
+  { $Type: 'UI.DataFieldForAction', Action: 'TestBetterAnnotationsService.publish', Label: 'Publish' }
+];
+
+annotate TestBetterAnnotationsService.Books with @UI.Identification: [
+  { Value: title },
+  { $Type: 'UI.DataFieldForAction', Action: 'TestBetterAnnotationsService.publish', Label: 'Publish' }
 ];
 
 annotate TestBetterAnnotationsService.Pages with @UI.LineItem: [

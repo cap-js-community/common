@@ -162,7 +162,7 @@ function combineExpressions(expressions) {
     if (xpr.length > 0) {
       xpr.push("or");
     }
-    xpr.push({xpr: expression.xpr});
+    xpr.push({ xpr: expression.xpr });
   }
   return { xpr };
 }
