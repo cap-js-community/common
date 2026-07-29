@@ -242,7 +242,7 @@ function enhanceModel(model) {
               addVirtualElement(def, fcField);
 
               // Core.OperationAvailable uses $self path
-              actionDef["@Core.OperationAvailable"] = { "=": `$self/${fcField}` };
+              actionDef["@Core.OperationAvailable"] = { "=": `$self.${fcField}` };
 
               // Store for handler
               if (!svcMeta.virtualFields[fqn]) {svcMeta.virtualFields[fqn] = [];}
