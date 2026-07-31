@@ -1,5 +1,7 @@
 "use strict";
 
+const cds = require("@sap/cds");
+
 const OPERATIONS = ["CREATE", "UPDATE", "DELETE"];
 
 /**
@@ -29,40 +31,45 @@ function expandGrants(grants) {
 }
 
 /**
- * Parse a where clause string into a simplified evaluator descriptor.
- * Returns { type, field, userAttr } or null if unsupported.
- *
- * Supported patterns:
- *   - "$user.id = <field>" / "<field> = $user.id" / "<field> = $user"
- *   - "$user.<attr> = <field>" / "<field> = $user.<attr>"
+ * Normalize a where clause into a CQN expression object of shape {xpr: [...]}.
+ * Accepts either a CDS expression string or an already-parsed CQN expression.
+ * Returns null when parsing fails or the input has no recognizable shape.
  */
 function parseWhere(where) {
-  if (!where || typeof where !== "string") {
+  if (!where) {
     return null;
   }
 
-  const cleaned = where.trim().replace(/[()]/g, "");
-
-  // Pattern: <field> = $user[.attr]  OR  $user[.attr] = <field>
-  const match = cleaned.match(/^(\$user(?:\.\w+)?)\s*=\s*(\w+(?:\.\w+)*)$|^(\w+(?:\.\w+)*)\s*=\s*(\$user(?:\.\w+)?)$/);
-  if (!match) {
+  // Already a CQN expression (as compiled from CDS `where: (expr)` syntax)
+  if (typeof where === "object") {
+    if (where.xpr) {
+      return { xpr: where.xpr };
+    }
+    if (where.ref || where.val || where.func) {
+      return { xpr: [where] };
+    }
     return null;
   }
 
-  let userRef, fieldRef;
-  if (match[1]) {
-    userRef = match[1];
-    fieldRef = match[2];
-  } else {
-    fieldRef = match[3];
-    userRef = match[4];
+  if (typeof where !== "string") {
+    return null;
   }
 
-  // Parse user attribute: $user → 'id', $user.id → 'id', $user.email → 'email'
-  const userParts = userRef.split(".");
-  const userAttr = userParts.length > 1 ? userParts[1] : "id";
-
-  return { type: "user-field", field: fieldRef, userAttr };
+  try {
+    const parsed = cds.parse.expr(where);
+    if (!parsed) {
+      return null;
+    }
+    if (parsed.xpr) {
+      return { xpr: parsed.xpr };
+    }
+    if (parsed.ref || parsed.val || parsed.func) {
+      return { xpr: [parsed] };
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -70,10 +77,16 @@ function parseWhere(where) {
  *
  * Returns operation map:
  * {
- *   CREATE: { unconditionalRoles: ['Admin'], conditionalGrants: [{ role: 'Manager', where: '...' }] },
+ *   CREATE: {
+ *     unconditionalRoles: ['Admin'],
+ *     conditionalGrants: [{ role: 'Manager', where: <CQN xpr | null> }],
+ *   },
  *   UPDATE: { ... },
- *   DELETE: { ... }
+ *   DELETE: { ... },
  * }
+ *
+ * `where` is normalized to a CQN expression `{xpr: [...]}` when parseable,
+ * otherwise `null` (best-effort role fallback at request time).
  */
 function analyzeRestrictions(restrictArray) {
   const result = {};
@@ -89,25 +102,23 @@ function analyzeRestrictions(restrictArray) {
     const grants = expandGrants(entry.grant || []);
     const roles = Array.isArray(entry.to) ? entry.to : entry.to ? [entry.to] : [];
     const where = entry.where || null;
+    const parsedWhere = where ? parseWhere(where) : null;
 
     for (const op of OPERATIONS) {
       if (!grants.has(op)) {
         continue;
       }
-
       if (where) {
         for (const role of roles) {
-          result[op].conditionalGrants.push({ role, where: typeof where === "string" ? where : null });
+          result[op].conditionalGrants.push({ role, where: parsedWhere });
         }
-        // If no roles specified, it's any authenticated user with condition
         if (roles.length === 0) {
-          result[op].conditionalGrants.push({ role: null, where: typeof where === "string" ? where : null });
+          result[op].conditionalGrants.push({ role: null, where: parsedWhere });
         }
       } else {
         for (const role of roles) {
           result[op].unconditionalRoles.push(role);
         }
-        // If no roles specified, everyone can do it unconditionally
         if (roles.length === 0) {
           result[op].unconditionalRoles.push("*");
         }
@@ -125,7 +136,7 @@ function analyzeRestrictions(restrictArray) {
  * @param knownActions optional array of action names defined on the entity; ensures
  *        actions not mentioned in any grant entry still get analyzed (empty grants →
  *        static hidden unless wildcard '*' covers them).
- * Returns map of actionName → { unconditionalRoles, conditionalGrants }
+ * Returns map of actionName → { unconditionalRoles, conditionalGrants }.
  */
 function analyzeActionRestrictions(restrictArray, knownActions = []) {
   const actions = {};
@@ -135,16 +146,15 @@ function analyzeActionRestrictions(restrictArray, knownActions = []) {
     return actions;
   }
 
-  // First pass: collect wildcard roles and action-specific grants
   for (const entry of restrictArray) {
     const grants = Array.isArray(entry.grant) ? entry.grant : entry.grant ? [entry.grant] : [];
     const roles = Array.isArray(entry.to) ? entry.to : entry.to ? [entry.to] : [];
     const where = entry.where || null;
+    const parsedWhere = where ? parseWhere(where) : null;
 
     for (const grant of grants) {
       const upper = grant.toUpperCase();
 
-      // Wildcard grants apply to all actions
       if (upper === "*") {
         if (!where) {
           for (const role of roles) {
@@ -157,22 +167,20 @@ function analyzeActionRestrictions(restrictArray, knownActions = []) {
         continue;
       }
 
-      // Skip standard CRUD/WRITE
       if (["CREATE", "READ", "UPDATE", "DELETE", "WRITE"].includes(upper)) {
         continue;
       }
 
-      // This is a custom action name
       if (!actions[grant]) {
         actions[grant] = { unconditionalRoles: [], conditionalGrants: [] };
       }
 
       if (where) {
         for (const role of roles) {
-          actions[grant].conditionalGrants.push({ role, where: typeof where === "string" ? where : null });
+          actions[grant].conditionalGrants.push({ role, where: parsedWhere });
         }
         if (roles.length === 0) {
-          actions[grant].conditionalGrants.push({ role: null, where: typeof where === "string" ? where : null });
+          actions[grant].conditionalGrants.push({ role: null, where: parsedWhere });
         }
       } else {
         for (const role of roles) {
@@ -185,7 +193,6 @@ function analyzeActionRestrictions(restrictArray, knownActions = []) {
     }
   }
 
-  // Second pass: apply wildcard roles to all discovered actions
   if (wildcardRoles.length > 0) {
     for (const actionAnalysis of Object.values(actions)) {
       for (const role of wildcardRoles) {
@@ -196,9 +203,6 @@ function analyzeActionRestrictions(restrictArray, knownActions = []) {
     }
   }
 
-  // Third pass: seed empty entries for known actions not mentioned anywhere.
-  // Ensures undiscovered actions are analyzed as "no grant" (→ static hidden)
-  // and receive wildcard grants when applicable.
   for (const actionName of knownActions) {
     if (actions[actionName]) {
       continue;
@@ -216,42 +220,34 @@ function analyzeActionRestrictions(restrictArray, knownActions = []) {
  * Determine generation strategy for an operation.
  *
  * Returns:
- *   { strategy: 'static', hidden: true }           — no grant at all
- *   { strategy: 'none' }                           — everyone can do it
- *   { strategy: 'singleton', roles: [...] }        — pure role check via singleton
- *   { strategy: 'virtual', roles: [...], wheres: [...] } — needs __fc_ field
+ *   { strategy: 'static', hidden: true }               — no grant at all
+ *   { strategy: 'none' }                               — everyone can do it
+ *   { strategy: 'singleton', roles: [...] }            — pure role check via singleton
+ *   { strategy: 'virtual', unconditionalRoles, conditionalGrants }
+ *                                                      — needs __fc_ field (per-instance)
  */
 function determineStrategy(opAnalysis) {
   const { unconditionalRoles, conditionalGrants } = opAnalysis;
 
-  // No grants at all → hidden
   if (unconditionalRoles.length === 0 && conditionalGrants.length === 0) {
     return { strategy: "static", hidden: true };
   }
 
-  // Everyone can do it (wildcard role or no role restriction)
   if (unconditionalRoles.includes("*")) {
     return { strategy: "none" };
   }
 
-  // Has where clauses → virtual field (combines role check + where evaluation)
   if (conditionalGrants.length > 0) {
     const allRoles = [...unconditionalRoles, ...conditionalGrants.map((g) => g.role).filter(Boolean)];
     const uniqueRoles = [...new Set(allRoles)];
-    const wheres = conditionalGrants
-      .map((g) => ({ role: g.role, parsed: parseWhere(g.where) }))
-      .filter((w) => w.parsed !== null);
-
     return {
       strategy: "virtual",
       roles: uniqueRoles,
       unconditionalRoles,
       conditionalGrants,
-      wheres,
     };
   }
 
-  // Pure role-based (no where) → singleton
   return { strategy: "singleton", roles: [...new Set(unconditionalRoles)] };
 }
 

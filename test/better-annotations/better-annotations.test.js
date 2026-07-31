@@ -48,6 +48,50 @@ describe("Better Annotations", () => {
       expect(raw).toContain("BetterAnnotationsConfig/canCreate_Products");
     });
 
+    it("singleton-referencing $edmJson.$Path annotations match hand-authored CDS shape", async () => {
+      // OData $metadata (JSON) — $Annotations map exposes the annotations
+      const { data: json } = await GET(`${SERVICE_PATH}/$metadata?$format=json`, {
+        auth: { username: "admin", password: "admin" },
+      });
+      const annotations = json?.TestBetterAnnotationsService?.$Annotations || {};
+
+      // Entity-level target: @UI.*Hidden must be `{ $Not: { $Path: '/BetterAnnotationsConfig/<field>' } }`
+      // — exactly the CSN shape produced when writing
+      //     @UI.CreateHidden: {$edmJson: {$Not: {$Path: '/BetterAnnotationsConfig/canCreate_Products'}}}
+      // in the .cds source directly.
+      const entityAnnos = annotations["TestBetterAnnotationsService.Products"] || {};
+      expect(entityAnnos["@UI.CreateHidden"]).toEqual({
+        $Not: { $Path: "/BetterAnnotationsConfig/canCreate_Products" },
+      });
+      expect(entityAnnos["@UI.UpdateHidden"]).toEqual({
+        $Not: { $Path: "/BetterAnnotationsConfig/canUpdate_Products" },
+      });
+      expect(entityAnnos["@UI.DeleteHidden"]).toEqual({
+        $Not: { $Path: "/BetterAnnotationsConfig/canDelete_Products" },
+      });
+
+      // Capabilities.* must resolve to `Path="/..."` in the EDMX PropertyValue
+      // (the OData JSON metadata serializer swallows the single-property record
+      // and would only show `{ Insertable: {} }`, so assert against the EDMX XML).
+      const { data: edmx } = await GET(`${SERVICE_PATH}/$metadata`, {
+        auth: { username: "admin", password: "admin" },
+      });
+      expect(edmx).toContain(
+        '<PropertyValue Property="Insertable" Path="/BetterAnnotationsConfig/canCreate_Products"/>',
+      );
+      expect(edmx).toContain(
+        '<PropertyValue Property="Updatable" Path="/BetterAnnotationsConfig/canUpdate_Products"/>',
+      );
+      expect(edmx).toContain(
+        '<PropertyValue Property="Deletable" Path="/BetterAnnotationsConfig/canDelete_Products"/>',
+      );
+
+      // Action-level: @Core.OperationAvailable must reference the singleton via $Path
+      expect(edmx).toContain(
+        '<Annotation Term="Core.OperationAvailable" Path="/BetterAnnotationsConfig/can_Tickets_approve"/>',
+      );
+    });
+
     it("Reviews has __fc_canUpdate virtual property", async () => {
       const { data } = await GET(`${SERVICE_PATH}/$metadata?$format=json`, {
         auth: { username: "admin", password: "admin" },
@@ -287,7 +331,7 @@ describe("Better Annotations", () => {
     });
   });
 
-  describe("Exists clause (best-effort fallback)", () => {
+  describe("Exists clause (real CAP expression)", () => {
     it("Projects: __fc_canUpdate virtual field is generated in metadata", async () => {
       const { data } = await GET(`${SERVICE_PATH}/$metadata?$format=json`, {
         auth: { username: "admin", password: "admin" },
@@ -311,14 +355,47 @@ describe("Better Annotations", () => {
       }
     });
 
-    it("Projects: employee gets __fc_canUpdate = true (best-effort role match, exists unsupported)", async () => {
+    it("Projects: employee gets __fc_canUpdate based on 'exists members[userID = $user.id]'", async () => {
       const { data } = await GET(`${SERVICE_PATH}/Projects`, {
         auth: { username: "employee", password: "employee" },
       });
       expect(data.value.length).toBeGreaterThan(0);
       for (const item of data.value) {
-        // Exists clause cannot be translated to CQL; role match → best-effort true
-        expect(item.__fc_canUpdate).toBe(true);
+        if (item.ID === "p1") {
+          // 'employee' is a member of p1 → allowed
+          expect(item.__fc_canUpdate).toBe(true);
+        } else {
+          // Not a member of p2 → denied
+          expect(item.__fc_canUpdate).toBe(false);
+        }
+      }
+    });
+  });
+
+  describe("CAP expression `where: (...)` (pre-parsed CQN)", () => {
+    it("ExprReviews: metadata contains __fc_canUpdate + __fc_canDelete", async () => {
+      const { data } = await GET(`${SERVICE_PATH}/$metadata?$format=json`, {
+        auth: { username: "admin", password: "admin" },
+      });
+      const type = data?.TestBetterAnnotationsService?.ExprReviews;
+      expect(type).toBeDefined();
+      expect(type.__fc_canUpdate).toBeDefined();
+      expect(type.__fc_canDelete).toBeDefined();
+    });
+
+    it("ExprReviews: employee gets __fc_canUpdate/canDelete based on createdBy (CDS parenthesised form)", async () => {
+      const { data } = await GET(`${SERVICE_PATH}/ExprReviews`, {
+        auth: { username: "employee", password: "employee" },
+      });
+      expect(data.value.length).toBeGreaterThan(0);
+      for (const item of data.value) {
+        if (item.createdBy === "employee") {
+          expect(item.__fc_canUpdate).toBe(true);
+          expect(item.__fc_canDelete).toBe(true);
+        } else {
+          expect(item.__fc_canUpdate).toBe(false);
+          expect(item.__fc_canDelete).toBe(false);
+        }
       }
     });
   });

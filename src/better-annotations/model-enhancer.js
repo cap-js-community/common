@@ -4,7 +4,7 @@ const cds = require("@sap/cds");
 
 const { OPERATIONS, analyzeRestrictions, analyzeActionRestrictions, determineStrategy } = require("./analyzer");
 
-const COMPONENT = "/cap-js-community-common/better-annotations";
+const log = cds.log("/cap-js-community-common/better-annotations");
 const SINGLETON_NAME = "BetterAnnotationsConfig";
 
 const ANNO_ROLES = "@BetterAnnotations.roles"; // on singleton element: list of roles that grant the operation
@@ -87,8 +87,6 @@ function serviceName(fqn) {
  * All metadata needed at runtime is stored as CSN annotations. No side channels.
  */
 function enhanceModel(model) {
-  const log = cds.log(COMPONENT);
-
   // Collect qualifying entities grouped by service
   const serviceEntities = {};
 
@@ -123,7 +121,6 @@ function enhanceModel(model) {
   // Process each service
   for (const [svcName, entities] of Object.entries(serviceEntities)) {
     const singletonFields = {}; // fieldName → roles[]
-    let needsSingleton = false;
 
     for (const { fqn, def, entityName } of entities) {
       const isReadonly = def["@readonly"] === true;
@@ -167,8 +164,6 @@ function enhanceModel(model) {
           case "singleton": {
             const fieldName = `can${op.charAt(0)}${op.slice(1).toLowerCase()}_${entityName}`;
             singletonFields[fieldName] = strategy.roles;
-            needsSingleton = true;
-
             def[uiAnno] = { $edmJson: { $Not: { $Path: `/${SINGLETON_NAME}/${fieldName}` } } };
             def[capAnno] = { $edmJson: { $Path: `/${SINGLETON_NAME}/${fieldName}` } };
             log.debug(`${fqn}: ${op} singleton-based (roles: ${strategy.roles.join(", ")})`);
@@ -219,8 +214,6 @@ function enhanceModel(model) {
             case "singleton": {
               const fieldName = `can_${entityName}_${actionName}`;
               singletonFields[fieldName] = strategy.roles;
-              needsSingleton = true;
-
               actionDef["@Core.OperationAvailable"] = {
                 $edmJson: { $Path: `/${SINGLETON_NAME}/${fieldName}` },
               };
@@ -243,7 +236,7 @@ function enhanceModel(model) {
     }
 
     // Generate BetterAnnotationsConfig singleton if needed
-    if (needsSingleton) {
+    if (Object.keys(singletonFields).length) {
       const singletonFqn = `${svcName}.${SINGLETON_NAME}`;
 
       if (!model.definitions[singletonFqn]) {

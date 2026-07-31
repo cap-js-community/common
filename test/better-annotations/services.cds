@@ -79,14 +79,22 @@ service TestBetterAnnotationsService {
   entity Pages as projection on db.Pages;
 
   // Case 10: Exists clause — Employee can update if member of the project.
-  // exists-clause is unsupported by the CQL translation and must fall back to
-  // best-effort (role match → enabled).
   @restrict: [
     { grant: ['READ'], to: ['Employee', 'Admin'] },
     { grant: ['*'], to: ['Admin'] },
     { grant: ['UPDATE'], to: ['Employee'], where: 'exists members[userID = $user.id]' }
   ]
   entity Projects as projection on db.Projects;
+
+  // Case 11: `where` written as CAP expression syntax (parentheses form).
+  // The compiler pre-parses it into a CQN xpr object rather than a string —
+  // the plugin must handle both representations.
+  @restrict: [
+    { grant: ['READ'], to: ['Employee', 'Admin'] },
+    { grant: ['*'], to: ['Admin'] },
+    { grant: ['UPDATE', 'DELETE'], to: ['Employee'], where: (createdBy = $user.id) }
+  ]
+  entity ExprReviews as projection on db.Reviews;
 }
 
 // UI annotations — entities that have these qualify for betterAnnotations processing
@@ -140,4 +148,9 @@ annotate TestBetterAnnotationsService.Pages with @UI.LineItem: [
 
 annotate TestBetterAnnotationsService.Projects with @UI.LineItem: [
   { Value: title }
+];
+
+annotate TestBetterAnnotationsService.ExprReviews with @UI.LineItem: [
+  { Value: title },
+  { Value: rating }
 ];

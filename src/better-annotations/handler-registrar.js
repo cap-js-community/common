@@ -1,14 +1,11 @@
 "use strict";
 
 const cds = require("@sap/cds");
-const { parseWhere } = require("./analyzer");
 const { SINGLETON_NAME, ANNO_ROLES, ANNO_UNCONDITIONAL, ANNO_CONDITIONAL } = require("./model-enhancer");
 
-const COMPONENT = "/cap-js-community-common/better-annotations";
+const log = cds.log("/cap-js-community-common/better-annotations");
 
 function registerHandlers(service) {
-  const log = cds.log(COMPONENT);
-
   service.prepend(() => {
     const singletonEntity = service.entities?.[SINGLETON_NAME] || `${service.name}.${SINGLETON_NAME}`;
     service.on("READ", singletonEntity, (req) => {
@@ -54,7 +51,7 @@ function registerHandlers(service) {
       return;
     }
 
-    // Remove any existing refs of virtual fields (they'd be no-op selects). '*' stays.
+    // Drop any bare refs for the virtual fields; keep '*' etc.
     select.columns = select.columns.filter((column) => {
       const ref = column?.ref?.[0];
       return !neededFields.some(({ field }) => ref === field);
@@ -79,7 +76,6 @@ function resolveTargetDef(service, req) {
     return null;
   }
 
-  // req.target already points at the effective (feature-toggled/draft-aware) def
   if (target.elements) {
     return target;
   }
@@ -153,33 +149,74 @@ function buildAvailabilityExpression(req, fieldDef) {
       continue;
     }
 
-    const parsed = parseWhere(grant.where);
-    if (!parsed) {
-      // Best effort: role matched but where clause cannot be translated to CQL.
+    const parsedWhere = grant.where;
+    if (!parsedWhere || !parsedWhere.xpr) {
+      // No usable expression: role matched (or grant with no role) but where was
+      // absent or unparseable. Enable best-effort — backend @restrict remains authoritative.
       expressions.push({ val: true });
       continue;
     }
 
-    const cqlExpression = buildCqlExpression(parsed, req);
-    if (cqlExpression) {
-      expressions.push(cqlExpression);
-    }
+    const substituted = substituteUser(parsedWhere.xpr, req);
+    expressions.push({ xpr: substituted });
   }
 
   return combineExpressions(expressions);
 }
 
-function buildCqlExpression(parsed, req) {
-  if (parsed.type !== "user-field") {
-    return null;
+/**
+ * Deep-clone a CQN xpr array while replacing every `{ref: ['$user', ...]}` node
+ * with a literal `{val: ...}` sourced from `req.user`. All other structure
+ * (refs, filters, exists, functions, nested xpr) is preserved as-is.
+ */
+function substituteUser(xprArray, req) {
+  return xprArray.map((token) => substituteToken(token, req));
+}
+
+function substituteToken(token, req) {
+  if (token === null || token === undefined) {
+    return token;
+  }
+  if (typeof token !== "object") {
+    return token;
   }
 
-  const userValue = parsed.userAttr === "id" ? req.user.id : req.user.attr?.[parsed.userAttr];
-  if (userValue === undefined) {
-    return null;
+  if (Array.isArray(token.ref)) {
+    if (token.ref[0] === "$user") {
+      const attr = token.ref[1];
+      if (!attr) {
+        return { val: req.user.id ?? null };
+      }
+      if (attr === "id") {
+        return { val: req.user.id ?? null };
+      }
+      const value = req.user.attr?.[attr];
+      return { val: value === undefined ? null : value };
+    }
+    // Reference with infix filters (e.g. `members[userID = $user.id]`)
+    const nextRef = token.ref.map((segment) => substituteRefSegment(segment, req));
+    return { ...token, ref: nextRef };
   }
 
-  return { xpr: [{ ref: parsed.field.split(".") }, "=", { val: userValue }] };
+  if (Array.isArray(token.xpr)) {
+    return { ...token, xpr: substituteUser(token.xpr, req) };
+  }
+
+  if (Array.isArray(token.args)) {
+    return { ...token, args: substituteUser(token.args, req) };
+  }
+
+  return token;
+}
+
+function substituteRefSegment(segment, req) {
+  if (typeof segment !== "object" || segment === null) {
+    return segment;
+  }
+  if (Array.isArray(segment.where)) {
+    return { ...segment, where: substituteUser(segment.where, req) };
+  }
+  return segment;
 }
 
 function combineExpressions(expressions) {
@@ -209,6 +246,6 @@ function combineExpressions(expressions) {
 module.exports = {
   registerHandlers,
   buildAvailabilityExpression,
-  buildCqlExpression,
+  substituteUser,
   requestedFieldNames,
 };
