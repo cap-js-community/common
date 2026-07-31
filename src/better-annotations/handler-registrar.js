@@ -6,14 +6,15 @@ const { SINGLETON_NAME } = require("./model-enhancer");
 
 const COMPONENT = "/cap-js-community-common/better-annotations";
 
-function registerHandlers(service, svcMeta) {
+function registerHandlers(service) {
   const log = cds.log(COMPONENT);
 
   service.prepend(() => {
     const singletonEntity = service.entities?.[SINGLETON_NAME] || `${service.name}.${SINGLETON_NAME}`;
     service.on("READ", singletonEntity, (req) => {
+      const { singletonFields } = getServiceMetadata(service);
       const result = { ID: "singleton" };
-      for (const [field, roles] of Object.entries(svcMeta.singletonFields || {})) {
+      for (const [field, roles] of Object.entries(singletonFields)) {
         result[field] = roles.some((role) => req.user.is(role));
       }
       return result;
@@ -22,7 +23,8 @@ function registerHandlers(service, svcMeta) {
   log.debug(`Registered ${SINGLETON_NAME} handler for ${service.name}`);
 
   service.before("READ", (req) => {
-    const fieldDefs = getVirtualFieldDefs(req, service, svcMeta.virtualFields || {});
+    const { virtualFields } = getServiceMetadata(service);
+    const fieldDefs = getVirtualFieldDefs(req, service, virtualFields);
     if (!fieldDefs?.length) {
       return;
     }
@@ -55,6 +57,12 @@ function registerHandlers(service, svcMeta) {
   });
 
   log.debug(`Registered __fc_ before READ handler for ${service.name}`);
+}
+
+function getServiceMetadata(service) {
+  const model = cds.context?.model || service.model || cds.model;
+  const metadata = model?.$betterAnnotations || cds.betterAnnotations;
+  return metadata?.services?.[service.name] || { singletonFields: {}, virtualFields: {} };
 }
 
 function getVirtualFieldDefs(req, service, virtualFields) {

@@ -326,6 +326,12 @@ function enhanceModel(model) {
     metadata.services[svcName] = svcMeta;
   }
 
+  Object.defineProperty(model, "$betterAnnotations", {
+    value: metadata,
+    configurable: true,
+    writable: true,
+  });
+
   return metadata;
 }
 
