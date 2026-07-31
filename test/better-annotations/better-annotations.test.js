@@ -61,8 +61,10 @@ describe("Better Annotations", () => {
       const { data } = await GET(`${SERVICE_PATH}/$metadata?$format=json`, {
         auth: { username: "admin", password: "admin" },
       });
-      const raw = JSON.stringify(data);
-      expect(raw).not.toContain("NoUIEntity.*__fc_");
+      const noUiType = data?.TestBetterAnnotationsService?.NoUIEntity;
+      expect(noUiType).toBeDefined();
+      const fcFields = Object.keys(noUiType).filter((k) => k.startsWith("__fc_"));
+      expect(fcFields).toEqual([]);
     });
   });
 
@@ -178,6 +180,15 @@ describe("Better Annotations", () => {
       expect(raw).toContain("__fc_can_reject");
     });
 
+    it("escalate action (not in @restrict) gets OperationAvailable via wildcard", async () => {
+      const { data } = await GET(`${SERVICE_PATH}/$metadata?$format=json`, {
+        auth: { username: "admin", password: "admin" },
+      });
+      const raw = JSON.stringify(data);
+      // escalate is not in any grant, but Admin has '*' → singleton field generated
+      expect(raw).toContain("can_Tickets_escalate");
+    });
+
     it("Fiori Books app exposes bound publish action with OperationAvailable", async () => {
       const { data } = await GET(`${SERVICE_PATH}/$metadata?$format=json`, {
         auth: { username: "admin", password: "admin" },
@@ -272,6 +283,42 @@ describe("Better Annotations", () => {
           expect(item.__fc_canUpdate).toBe(false);
           expect(item.__fc_canDelete).toBe(false);
         }
+      }
+    });
+  });
+
+  describe("Exists clause (best-effort fallback)", () => {
+    it("Projects: __fc_canUpdate virtual field is generated in metadata", async () => {
+      const { data } = await GET(`${SERVICE_PATH}/$metadata?$format=json`, {
+        auth: { username: "admin", password: "admin" },
+      });
+      const raw = JSON.stringify(data);
+      // Projects entity should have __fc_canUpdate because employee grant has where clause
+      const projectsType = data?.TestBetterAnnotationsService?.Projects;
+      expect(projectsType).toBeDefined();
+      expect(projectsType.__fc_canUpdate).toBeDefined();
+      // UpdateHidden annotation should be present
+      expect(raw).toContain("UpdateHidden");
+    });
+
+    it("Projects: admin gets __fc_canUpdate = true (unconditional *)", async () => {
+      const { data } = await GET(`${SERVICE_PATH}/Projects`, {
+        auth: { username: "admin", password: "admin" },
+      });
+      expect(data.value.length).toBeGreaterThan(0);
+      for (const item of data.value) {
+        expect(item.__fc_canUpdate).toBe(true);
+      }
+    });
+
+    it("Projects: employee gets __fc_canUpdate = true (best-effort role match, exists unsupported)", async () => {
+      const { data } = await GET(`${SERVICE_PATH}/Projects`, {
+        auth: { username: "employee", password: "employee" },
+      });
+      expect(data.value.length).toBeGreaterThan(0);
+      for (const item of data.value) {
+        // Exists clause cannot be translated to CQL; role match → best-effort true
+        expect(item.__fc_canUpdate).toBe(true);
       }
     });
   });

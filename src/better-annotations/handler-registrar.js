@@ -2,7 +2,7 @@
 
 const cds = require("@sap/cds");
 const { parseWhere } = require("./analyzer");
-const { SINGLETON_NAME } = require("./model-enhancer");
+const { SINGLETON_NAME, ANNO_ROLES, ANNO_UNCONDITIONAL, ANNO_CONDITIONAL } = require("./model-enhancer");
 
 const COMPONENT = "/cap-js-community-common/better-annotations";
 
@@ -12,10 +12,15 @@ function registerHandlers(service) {
   service.prepend(() => {
     const singletonEntity = service.entities?.[SINGLETON_NAME] || `${service.name}.${SINGLETON_NAME}`;
     service.on("READ", singletonEntity, (req) => {
-      const { singletonFields } = getServiceMetadata(service);
+      const entityDef = getModelDefinition(service, `${service.name}.${SINGLETON_NAME}`);
       const result = { ID: "singleton" };
-      for (const [field, roles] of Object.entries(singletonFields)) {
-        result[field] = roles.some((role) => req.user.is(role));
+      const elements = entityDef?.elements || {};
+      for (const [fieldName, elementDef] of Object.entries(elements)) {
+        const roles = elementDef?.[ANNO_ROLES];
+        if (!Array.isArray(roles)) {
+          continue;
+        }
+        result[fieldName] = roles.some((role) => req.user.is(role));
       }
       return result;
     });
@@ -23,9 +28,13 @@ function registerHandlers(service) {
   log.debug(`Registered ${SINGLETON_NAME} handler for ${service.name}`);
 
   service.before("READ", (req) => {
-    const { virtualFields } = getServiceMetadata(service);
-    const fieldDefs = getVirtualFieldDefs(req, service, virtualFields);
-    if (!fieldDefs?.length) {
+    const targetDef = resolveTargetDef(service, req);
+    if (!targetDef?.elements) {
+      return;
+    }
+
+    const fieldDefs = collectVirtualFieldDefs(targetDef.elements);
+    if (fieldDefs.length === 0) {
       return;
     }
 
@@ -45,7 +54,7 @@ function registerHandlers(service) {
       return;
     }
 
-    // Replace virtual refs with calculated columns. For '*' append calculated columns.
+    // Remove any existing refs of virtual fields (they'd be no-op selects). '*' stays.
     select.columns = select.columns.filter((column) => {
       const ref = column?.ref?.[0];
       return !neededFields.some(({ field }) => ref === field);
@@ -59,28 +68,50 @@ function registerHandlers(service) {
   log.debug(`Registered __fc_ before READ handler for ${service.name}`);
 }
 
-function getServiceMetadata(service) {
+function getModelDefinition(service, fqn) {
   const model = cds.context?.model || service.model || cds.model;
-  const metadata = model?.$betterAnnotations || cds.betterAnnotations;
-  return metadata?.services?.[service.name] || { singletonFields: {}, virtualFields: {} };
+  return model?.definitions?.[fqn];
 }
 
-function getVirtualFieldDefs(req, service, virtualFields) {
-  const targetName = req.target?.name;
-  if (!targetName) {
+function resolveTargetDef(service, req) {
+  const target = req.target;
+  if (!target?.name) {
     return null;
   }
 
-  const shortName = targetName.split(".").pop();
-  const baseTargetName = targetName.endsWith(".drafts") ? targetName.slice(0, -".drafts".length) : targetName;
-  const baseShortName = baseTargetName.split(".").pop();
+  // req.target already points at the effective (feature-toggled/draft-aware) def
+  if (target.elements) {
+    return target;
+  }
 
-  return (
-    virtualFields[targetName] ||
-    virtualFields[baseTargetName] ||
-    virtualFields[`${service.name}.${shortName}`] ||
-    virtualFields[`${service.name}.${baseShortName}`]
-  );
+  const model = cds.context?.model || service.model || cds.model;
+  const definitions = model?.definitions;
+  if (!definitions) {
+    return null;
+  }
+
+  const baseName = target.name.endsWith(".drafts") ? target.name.slice(0, -".drafts".length) : target.name;
+  return definitions[target.name] || definitions[baseName] || null;
+}
+
+function collectVirtualFieldDefs(elements) {
+  const defs = [];
+  for (const [name, element] of Object.entries(elements)) {
+    if (!element?.virtual) {
+      continue;
+    }
+    const unconditionalRoles = element[ANNO_UNCONDITIONAL];
+    const conditionalGrants = element[ANNO_CONDITIONAL];
+    if (!Array.isArray(unconditionalRoles) && !Array.isArray(conditionalGrants)) {
+      continue;
+    }
+    defs.push({
+      field: name,
+      unconditionalRoles: Array.isArray(unconditionalRoles) ? unconditionalRoles : [],
+      conditionalGrants: Array.isArray(conditionalGrants) ? conditionalGrants : [],
+    });
+  }
+  return defs;
 }
 
 function requestedFieldNames(columns) {
@@ -124,7 +155,7 @@ function buildAvailabilityExpression(req, fieldDef) {
 
     const parsed = parseWhere(grant.where);
     if (!parsed) {
-      // Best effort: role matched, but where clause cannot be translated to CQL.
+      // Best effort: role matched but where clause cannot be translated to CQL.
       expressions.push({ val: true });
       continue;
     }

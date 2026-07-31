@@ -13,12 +13,7 @@ class BetterAnnotations {
 
   attach() {
     cds.on("loaded", (model) => {
-      const metadata = enhanceModel(model);
-      cds.betterAnnotations = metadata;
-      const serviceCount = Object.keys(metadata.services).length;
-      if (serviceCount > 0) {
-        this.log.info("Enhanced model for", serviceCount, "service(s)");
-      }
+      enhanceModel(model);
     });
 
     cds.on("serving", (service) => {

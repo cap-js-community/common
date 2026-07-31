@@ -7,6 +7,10 @@ const { OPERATIONS, analyzeRestrictions, analyzeActionRestrictions, determineStr
 const COMPONENT = "/cap-js-community-common/better-annotations";
 const SINGLETON_NAME = "BetterAnnotationsConfig";
 
+const ANNO_ROLES = "@BetterAnnotations.roles"; // on singleton element: list of roles that grant the operation
+const ANNO_UNCONDITIONAL = "@BetterAnnotations.unconditionalRoles"; // on virtual __fc_ element
+const ANNO_CONDITIONAL = "@BetterAnnotations.conditionalGrants"; // on virtual __fc_ element: [{role, where}]
+
 const UI_HIDDEN_MAP = {
   CREATE: "@UI.CreateHidden",
   UPDATE: "@UI.UpdateHidden",
@@ -27,10 +31,10 @@ function hasUIAnnotations(def) {
 }
 
 /**
- * Add a virtual Boolean element to an entity definition.
+ * Add a virtual Boolean element to an entity definition with metadata annotations.
  * Handles both plain entities and projection entities (adds to projection.columns too).
  */
-function addVirtualElement(def, fieldName) {
+function addVirtualElement(def, fieldName, unconditionalRoles, conditionalGrants) {
   if (!def.elements) {
     def.elements = {};
   }
@@ -39,6 +43,8 @@ function addVirtualElement(def, fieldName) {
     virtual: true,
     type: "cds.Boolean",
     "@UI.Hidden": true,
+    [ANNO_UNCONDITIONAL]: [...unconditionalRoles],
+    [ANNO_CONDITIONAL]: conditionalGrants.map((g) => ({ role: g.role, where: g.where })),
   };
 
   // For projection entities, also add to projection.columns
@@ -73,26 +79,15 @@ function serviceName(fqn) {
 }
 
 /**
- * Enhance the CSN model:
- * - Add __fc_ virtual fields
- * - Add BetterAnnotationsConfig singleton per service
+ * Enhance the CSN model in-place:
+ * - Add __fc_ virtual fields with metadata annotations on the element
+ * - Add BetterAnnotationsConfig singleton per service; each field annotated with @fc.ba.roles
  * - Set @UI.*Hidden, @Capabilities, @Core.OperationAvailable annotations
  *
- * Returns metadata needed by handler-registrar:
- * {
- *   services: {
- *     "ServiceName": {
- *       singletonFields: { "canCreate_Orders": ["Admin", "Manager"], ... },
- *       virtualFields: {
- *         "EntityName": [{ field, op, unconditionalRoles, conditionalGrants }]
- *       }
- *     }
- *   }
- * }
+ * All metadata needed at runtime is stored as CSN annotations. No side channels.
  */
 function enhanceModel(model) {
   const log = cds.log(COMPONENT);
-  const metadata = { services: {} };
 
   // Collect qualifying entities grouped by service
   const serviceEntities = {};
@@ -127,7 +122,7 @@ function enhanceModel(model) {
 
   // Process each service
   for (const [svcName, entities] of Object.entries(serviceEntities)) {
-    const svcMeta = { singletonFields: {}, virtualFields: {} };
+    const singletonFields = {}; // fieldName → roles[]
     let needsSingleton = false;
 
     for (const { fqn, def, entityName } of entities) {
@@ -171,12 +166,10 @@ function enhanceModel(model) {
 
           case "singleton": {
             const fieldName = `can${op.charAt(0)}${op.slice(1).toLowerCase()}_${entityName}`;
-            svcMeta.singletonFields[fieldName] = strategy.roles;
+            singletonFields[fieldName] = strategy.roles;
             needsSingleton = true;
 
-            // @UI.*Hidden: { $edmJson: { $Not: { $Path: '/BetterAnnotationsConfig/<field>' } } }
             def[uiAnno] = { $edmJson: { $Not: { $Path: `/${SINGLETON_NAME}/${fieldName}` } } };
-            // @Capabilities: { $edmJson: { $Path: '/BetterAnnotationsConfig/<field>' } }
             def[capAnno] = { $edmJson: { $Path: `/${SINGLETON_NAME}/${fieldName}` } };
             log.debug(`${fqn}: ${op} singleton-based (roles: ${strategy.roles.join(", ")})`);
             break;
@@ -184,27 +177,9 @@ function enhanceModel(model) {
 
           case "virtual": {
             const fcField = `__fc_can${op.charAt(0)}${op.slice(1).toLowerCase()}`;
-
-            // Add virtual element to entity
-            addVirtualElement(def, fcField);
-
-            // @UI.*Hidden: (not __fc_canXxx) — expression annotation
+            addVirtualElement(def, fcField, strategy.unconditionalRoles, strategy.conditionalGrants);
             def[uiAnno] = { xpr: ["not", { ref: [fcField] }] };
-            // @Capabilities: __fc_canXxx — path binding
             def[capAnno] = { "=": fcField };
-
-            // Store metadata for handler registration
-            if (!svcMeta.virtualFields[fqn]) {
-              svcMeta.virtualFields[fqn] = [];
-            }
-            svcMeta.virtualFields[fqn].push({
-              field: fcField,
-              op,
-              unconditionalRoles: strategy.unconditionalRoles,
-              conditionalGrants: strategy.conditionalGrants,
-              wheres: strategy.wheres,
-            });
-
             log.debug(`${fqn}: ${op} virtual field ${fcField}`);
             break;
           }
@@ -212,7 +187,8 @@ function enhanceModel(model) {
       }
 
       // Process action restrictions → @Core.OperationAvailable
-      const actionRestrictions = analyzeActionRestrictions(def["@restrict"]);
+      const knownActions = def.actions ? Object.keys(def.actions) : [];
+      const actionRestrictions = analyzeActionRestrictions(def["@restrict"], knownActions);
       if (def.actions) {
         for (const [actionName, actionDef] of Object.entries(def.actions)) {
           // Skip if already annotated
@@ -236,14 +212,13 @@ function enhanceModel(model) {
             }
 
             case "none": {
-              // Everyone can do it
               log.debug(`${fqn}/${actionName}: Core.OperationAvailable — all allowed, skipping`);
               break;
             }
 
             case "singleton": {
               const fieldName = `can_${entityName}_${actionName}`;
-              svcMeta.singletonFields[fieldName] = strategy.roles;
+              singletonFields[fieldName] = strategy.roles;
               needsSingleton = true;
 
               actionDef["@Core.OperationAvailable"] = {
@@ -257,25 +232,8 @@ function enhanceModel(model) {
 
             case "virtual": {
               const fcField = `__fc_can_${actionName}`;
-
-              // Add virtual element to entity for action availability
-              addVirtualElement(def, fcField);
-
-              // Core.OperationAvailable uses $self path
+              addVirtualElement(def, fcField, strategy.unconditionalRoles, strategy.conditionalGrants);
               actionDef["@Core.OperationAvailable"] = { "=": `$self.${fcField}` };
-
-              // Store for handler
-              if (!svcMeta.virtualFields[fqn]) {
-                svcMeta.virtualFields[fqn] = [];
-              }
-              svcMeta.virtualFields[fqn].push({
-                field: fcField,
-                op: actionName,
-                unconditionalRoles: strategy.unconditionalRoles,
-                conditionalGrants: strategy.conditionalGrants,
-                wheres: strategy.wheres,
-              });
-
               log.debug(`${fqn}/${actionName}: Core.OperationAvailable virtual ${fcField}`);
               break;
             }
@@ -288,14 +246,13 @@ function enhanceModel(model) {
     if (needsSingleton) {
       const singletonFqn = `${svcName}.${SINGLETON_NAME}`;
 
-      // Don't overwrite existing
       if (!model.definitions[singletonFqn]) {
         const elements = {
           ID: { type: "cds.String", key: true },
         };
 
-        for (const fieldName of Object.keys(svcMeta.singletonFields)) {
-          elements[fieldName] = { type: "cds.Boolean" };
+        for (const [fieldName, roles] of Object.entries(singletonFields)) {
+          elements[fieldName] = { type: "cds.Boolean", [ANNO_ROLES]: [...roles] };
         }
 
         model.definitions[singletonFqn] = {
@@ -307,32 +264,28 @@ function enhanceModel(model) {
           elements,
         };
 
-        log.debug(`Generated ${singletonFqn} with fields: ${Object.keys(svcMeta.singletonFields).join(", ")}`);
+        log.debug(`Generated ${singletonFqn} with fields: ${Object.keys(singletonFields).join(", ")}`);
       } else {
-        // Singleton already exists — add our fields
+        // Singleton already exists — add our fields with role annotations
         const existing = model.definitions[singletonFqn];
         if (!existing.elements) {
           existing.elements = {};
         }
-        for (const fieldName of Object.keys(svcMeta.singletonFields)) {
+        for (const [fieldName, roles] of Object.entries(singletonFields)) {
           if (!existing.elements[fieldName]) {
-            existing.elements[fieldName] = { type: "cds.Boolean" };
+            existing.elements[fieldName] = { type: "cds.Boolean", [ANNO_ROLES]: [...roles] };
           }
         }
-        log.debug(`Extended existing ${singletonFqn} with fields: ${Object.keys(svcMeta.singletonFields).join(", ")}`);
+        log.debug(`Extended existing ${singletonFqn} with fields: ${Object.keys(singletonFields).join(", ")}`);
       }
     }
-
-    metadata.services[svcName] = svcMeta;
   }
-
-  Object.defineProperty(model, "$betterAnnotations", {
-    value: metadata,
-    configurable: true,
-    writable: true,
-  });
-
-  return metadata;
 }
 
-module.exports = { enhanceModel, SINGLETON_NAME };
+module.exports = {
+  enhanceModel,
+  SINGLETON_NAME,
+  ANNO_ROLES,
+  ANNO_UNCONDITIONAL,
+  ANNO_CONDITIONAL,
+};

@@ -121,9 +121,13 @@ function analyzeRestrictions(restrictArray) {
 /**
  * Analyze actions within an entity's @restrict for Core.OperationAvailable.
  *
+ * @param restrictArray @restrict array from entity
+ * @param knownActions optional array of action names defined on the entity; ensures
+ *        actions not mentioned in any grant entry still get analyzed (empty grants →
+ *        static hidden unless wildcard '*' covers them).
  * Returns map of actionName → { unconditionalRoles, conditionalGrants }
  */
-function analyzeActionRestrictions(restrictArray) {
+function analyzeActionRestrictions(restrictArray, knownActions = []) {
   const actions = {};
   const wildcardRoles = []; // roles with grant: '*' (applies to all actions)
 
@@ -190,6 +194,19 @@ function analyzeActionRestrictions(restrictArray) {
         }
       }
     }
+  }
+
+  // Third pass: seed empty entries for known actions not mentioned anywhere.
+  // Ensures undiscovered actions are analyzed as "no grant" (→ static hidden)
+  // and receive wildcard grants when applicable.
+  for (const actionName of knownActions) {
+    if (actions[actionName]) {
+      continue;
+    }
+    actions[actionName] = {
+      unconditionalRoles: [...wildcardRoles],
+      conditionalGrants: [],
+    };
   }
 
   return actions;

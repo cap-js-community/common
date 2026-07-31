@@ -60,3 +60,16 @@ entity Pages : managed {
       content   : String;
       pageNo    : Integer;
 }
+
+// Exists-clause test: Projects with members
+entity Projects : managed {
+  key ID      : UUID;
+      title   : String;
+      members : Composition of many ProjectMembers on members.project = $self;
+}
+
+entity ProjectMembers : managed {
+  key ID      : UUID;
+      project : Association to Projects;
+      userID  : String;
+}

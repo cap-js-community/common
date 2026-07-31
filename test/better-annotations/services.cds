@@ -77,6 +77,16 @@ service TestBetterAnnotationsService {
     { grant: ['CREATE', 'UPDATE', 'DELETE'], to: ['Employee'], where: 'book.createdBy = $user.id' }
   ]
   entity Pages as projection on db.Pages;
+
+  // Case 10: Exists clause — Employee can update if member of the project.
+  // exists-clause is unsupported by the CQL translation and must fall back to
+  // best-effort (role match → enabled).
+  @restrict: [
+    { grant: ['READ'], to: ['Employee', 'Admin'] },
+    { grant: ['*'], to: ['Admin'] },
+    { grant: ['UPDATE'], to: ['Employee'], where: 'exists members[userID = $user.id]' }
+  ]
+  entity Projects as projection on db.Projects;
 }
 
 // UI annotations — entities that have these qualify for betterAnnotations processing
@@ -126,4 +136,8 @@ annotate TestBetterAnnotationsService.Books with @UI.Identification: [
 annotate TestBetterAnnotationsService.Pages with @UI.LineItem: [
   { Value: content },
   { Value: pageNo }
+];
+
+annotate TestBetterAnnotationsService.Projects with @UI.LineItem: [
+  { Value: title }
 ];
