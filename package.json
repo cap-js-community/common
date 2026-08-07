@@ -1,6 +1,6 @@
 {
   "name": "@cap-js-community/common",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "CAP Node.js Community Common",
   "homepage": "https://cap.cloud.sap/",
   "engines": {
@@ -52,8 +52,8 @@
   },
   "dependencies": {
     "commander": "^15.0.0",
-    "express": "^5.2.1",
-    "redis": "^6.1.0",
+    "express": "^4.22.2 || ^5.2.1",
+    "redis": "^4.7.1 || ^5.12.1 || ^6.2.0",
     "verror": "^1.10.1"
   },
   "devDependencies": {
@@ -64,7 +64,7 @@
     "@sap/cds-common-content": "^3.2.0",
     "@sap/cds-dk": "^10.0.6",
     "@vitest/coverage-v8": "^4.1.10",
-    "@vitest/eslint-plugin": "^1.6.24",
+    "@vitest/eslint-plugin": "^1.6.26",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-n": "^18.2.2",
