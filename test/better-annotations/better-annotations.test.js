@@ -224,6 +224,27 @@ describe("Better Annotations", () => {
       expect(raw).toContain("__fc_can_reject");
     });
 
+    it("virtual-field OperationAvailable is emitted as bare Path (no '$self' prefix)", async () => {
+      // The virtual-field variant of @Core.OperationAvailable must resolve to
+      //   <Annotation Term="Core.OperationAvailable" Path="__fc_can_<action>"/>
+      // and NOT `Path="$self.__fc_..."` or `Path="$self/__fc_..."`. UI5 evaluates
+      // the Path relative to the current row context; a leading `$self` breaks
+      // the lookup because it becomes part of the property path in the request.
+      const { data: edmx } = await GET(`${SERVICE_PATH}/$metadata`, {
+        auth: { username: "admin", password: "admin" },
+      });
+
+      // Correct shape for both virtual-field bound actions
+      expect(edmx).toContain('<Annotation Term="Core.OperationAvailable" Path="__fc_can_reject"/>');
+      expect(edmx).toContain('<Annotation Term="Core.OperationAvailable" Path="__fc_can_publish"/>');
+
+      // No `$self` leak anywhere in the EDMX — neither as a Path prefix nor as
+      // part of a Record/PropertyValue.
+      expect(edmx).not.toMatch(/Path="\$self/);
+      expect(edmx).not.toContain("$self.__fc_");
+      expect(edmx).not.toContain("$self/__fc_");
+    });
+
     it("escalate action (not in @restrict) gets OperationAvailable via wildcard", async () => {
       const { data } = await GET(`${SERVICE_PATH}/$metadata?$format=json`, {
         auth: { username: "admin", password: "admin" },
@@ -298,19 +319,73 @@ describe("Better Annotations", () => {
       expect(raw).toContain("DeleteHidden");
     });
 
-    it("Pages: admin gets __fc_canCreate = true (unconditional *)", async () => {
+    it("Pages: admin gets __fc_canUpdate/__fc_canDelete = true (unconditional *)", async () => {
       const { data } = await GET(`${SERVICE_PATH}/Pages`, {
         auth: { username: "admin", password: "admin" },
       });
       expect(data.value.length).toBeGreaterThan(0);
       for (const item of data.value) {
-        expect(item.__fc_canCreate).toBe(true);
+        // CreateHidden for Pages must not depend on Pages itself — no __fc_canCreate on the child.
+        expect(item.__fc_canCreate).toBeUndefined();
         expect(item.__fc_canUpdate).toBe(true);
         expect(item.__fc_canDelete).toBe(true);
       }
     });
 
-    it("Pages: employee gets __fc_canCreate based on parent book.createdBy", async () => {
+    it("Books: admin gets __fc_canCreate_Pages = true (parent-side create virtual field)", async () => {
+      const { data } = await GET(`${SERVICE_PATH}/Books?$select=ID,createdBy,__fc_canCreate_Pages`, {
+        auth: { username: "admin", password: "admin" },
+      });
+      expect(data.value.length).toBeGreaterThan(0);
+      for (const item of data.value) {
+        // Admin has unconditional '*' → true for every book
+        expect(item.__fc_canCreate_Pages).toBe(true);
+      }
+    });
+
+    it("Books: employee gets __fc_canCreate_Pages based on rewritten where 'createdBy = $user.id'", async () => {
+      const { data } = await GET(`${SERVICE_PATH}/Books?$select=ID,createdBy,__fc_canCreate_Pages`, {
+        auth: { username: "employee", password: "employee" },
+      });
+      expect(data.value.length).toBeGreaterThan(0);
+      for (const item of data.value) {
+        if (item.createdBy === "employee") {
+          expect(item.__fc_canCreate_Pages).toBe(true);
+        } else {
+          expect(item.__fc_canCreate_Pages).toBe(false);
+        }
+      }
+    });
+
+    it("Pages @UI.CreateHidden points to parent path 'book/__fc_canCreate_Pages' (never to self)", async () => {
+      const { data: edmx } = await GET(`${SERVICE_PATH}/$metadata`, {
+        auth: { username: "admin", password: "admin" },
+      });
+
+      // Extract the Pages entity-level annotations block from the EDMX XML.
+      const pagesBlock = edmx.match(
+        /<Annotations Target="TestBetterAnnotationsService\.Pages">[\s\S]*?<\/Annotations>/,
+      );
+      expect(pagesBlock).not.toBeNull();
+      const block = pagesBlock[0];
+
+      // CreateHidden must resolve via the `book` navigation, not the Pages row itself.
+      expect(block).toContain("<Path>book/__fc_canCreate_Pages</Path>");
+      // No self-referencing __fc_canCreate on Pages
+      expect(block).not.toContain(">__fc_canCreate<");
+
+      // The container-target must expose the same parent-path Insertable
+      // (verifies capabilities Insertable Path renders correctly, not as an
+      // empty <Record/>).
+      const containerBlock = edmx.match(
+        /<Annotations Target="TestBetterAnnotationsService\.EntityContainer\/Pages">[\s\S]*?<\/Annotations>/,
+      );
+      expect(containerBlock).not.toBeNull();
+      expect(containerBlock[0]).toContain('<PropertyValue Property="Insertable" Path="book/__fc_canCreate_Pages"/>');
+      expect(containerBlock[0]).not.toContain('<PropertyValue Property="Insertable">\n              <Record/>');
+    });
+
+    it("Pages: employee gets __fc_canUpdate/canDelete based on parent book.createdBy", async () => {
       const { data } = await GET(`${SERVICE_PATH}/Pages`, {
         auth: { username: "employee", password: "employee" },
       });
@@ -318,12 +393,9 @@ describe("Better Annotations", () => {
       for (const item of data.value) {
         // Pages with book_ID=2 belong to book created by 'employee'
         if (item.book_ID === "2") {
-          expect(item.__fc_canCreate).toBe(true);
           expect(item.__fc_canUpdate).toBe(true);
           expect(item.__fc_canDelete).toBe(true);
         } else {
-          // Other books not owned by employee
-          expect(item.__fc_canCreate).toBe(false);
           expect(item.__fc_canUpdate).toBe(false);
           expect(item.__fc_canDelete).toBe(false);
         }

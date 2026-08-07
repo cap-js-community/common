@@ -2,10 +2,13 @@
   "cds": {
     "betterAnnotations": true,
     "requires": {
-      "db": {
-        "kind": "sqlite",
-        "credentials": {
-          "database": ":memory:"
+      "auth": {
+        "kind": "mocked",
+        "users": {
+          "alice": { "roles": ["Employee"] },
+          "admin": { "roles": ["Admin"] },
+          "employee": { "roles": ["Employee"] },
+          "manager": { "roles": ["Manager"] }
         }
       }
     }

@@ -1,4 +1,4 @@
-using TestBetterAnnotationsService as service;
+using TestBetterAnnotationsService as service from '../../services';
 
 // Books: List Report + Object Page (with Pages as child)
 annotate service.Books with @UI: {

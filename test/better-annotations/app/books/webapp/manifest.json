@@ -55,6 +55,7 @@
             "settings": {
               "contextPath": "/Books",
               "variantManagement": "Page",
+              "liveMode": true,
               "navigation": {
                 "Books": {
                   "detail": {

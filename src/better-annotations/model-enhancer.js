@@ -23,9 +23,6 @@ const CAPABILITIES_MAP = {
   DELETE: "@Capabilities.DeleteRestrictions.Deletable",
 };
 
-/**
- * Check if entity has at least one @UI annotation.
- */
 function hasUIAnnotations(def) {
   return Object.keys(def).some((k) => k.startsWith("@UI."));
 }
@@ -47,7 +44,6 @@ function addVirtualElement(def, fieldName, unconditionalRoles, conditionalGrants
     [ANNO_CONDITIONAL]: conditionalGrants.map((g) => ({ role: g.role, where: g.where })),
   };
 
-  // For projection entities, also add to projection.columns
   if (def.projection) {
     if (!def.projection.columns) {
       def.projection.columns = ["*"];
@@ -60,34 +56,114 @@ function addVirtualElement(def, fieldName, unconditionalRoles, conditionalGrants
   }
 }
 
-/**
- * Get short entity name from fully qualified name.
- * e.g., "MyService.Orders" → "Orders"
- */
 function shortName(fqn) {
   const parts = fqn.split(".");
   return parts[parts.length - 1];
 }
 
-/**
- * Determine service name from entity FQN.
- * e.g., "MyService.Orders" → "MyService"
- */
 function serviceName(fqn) {
   const idx = fqn.lastIndexOf(".");
   return idx > 0 ? fqn.substring(0, idx) : null;
 }
 
 /**
+ * Find the single "parent" association on a child entity, meaning: an Association
+ * (or composition backlink) whose target is another entity in the same service
+ * that composes this child (Composition of many <Child> on <backlink> = $self).
+ * Returns { assocName, parentDef } or null when unresolvable / ambiguous.
+ */
+function findParentAssociation(childFqn, childDef, model) {
+  if (!childDef.elements) {
+    return null;
+  }
+
+  const candidates = [];
+  for (const [name, element] of Object.entries(childDef.elements)) {
+    if (!element?.target) {
+      continue;
+    }
+    const parentDef = model.definitions[element.target];
+    if (!parentDef?.elements) {
+      continue;
+    }
+
+    // Look for a Composition on the parent that targets this child via `on child.<assocName> = $self`
+    for (const parentElement of Object.values(parentDef.elements)) {
+      if (parentElement?.target !== childFqn) {
+        continue;
+      }
+      const onCondition = parentElement.on;
+      if (!Array.isArray(onCondition)) {
+        continue;
+      }
+      // Structure: [{ref:['<compositionAlias>','<assocName>']}, '=', {ref:['$self']}] (or reversed)
+      const referencesChildBacklink = onCondition.some((token) => {
+        return (
+          typeof token === "object" &&
+          Array.isArray(token?.ref) &&
+          token.ref.length >= 2 &&
+          token.ref[token.ref.length - 1] === name
+        );
+      });
+      if (referencesChildBacklink) {
+        candidates.push({ assocName: name, parentDef });
+        break;
+      }
+    }
+  }
+
+  if (candidates.length !== 1) {
+    return null; // 0 or multiple → cannot decide unambiguously
+  }
+  return candidates[0];
+}
+
+/**
+ * Rewrite a parsed where clause so that all path refs prefixed by `parentAssocName`
+ * are re-rooted relative to the parent entity (drop the leading segment).
+ *
+ * Returns a deep-cloned CQN expression with the same shape but re-rooted refs.
+ */
+function rewriteWhereForParent(parsedWhere, parentAssocName) {
+  if (!parsedWhere?.xpr) {
+    return parsedWhere;
+  }
+  return { xpr: parsedWhere.xpr.map((token) => rewriteToken(token, parentAssocName)) };
+}
+
+function rewriteToken(token, parentAssocName) {
+  if (token === null || typeof token !== "object") {
+    return token;
+  }
+  if (Array.isArray(token.ref)) {
+    const firstSegment = token.ref[0];
+    if (typeof firstSegment === "string" && firstSegment === parentAssocName) {
+      const remainder = token.ref.slice(1);
+      if (remainder.length === 0) {
+        return { ref: ["$self"] };
+      }
+      return { ...token, ref: remainder };
+    }
+    return token;
+  }
+  if (Array.isArray(token.xpr)) {
+    return { ...token, xpr: token.xpr.map((t) => rewriteToken(t, parentAssocName)) };
+  }
+  if (Array.isArray(token.args)) {
+    return { ...token, args: token.args.map((t) => rewriteToken(t, parentAssocName)) };
+  }
+  return token;
+}
+
+/**
  * Enhance the CSN model in-place:
  * - Add __fc_ virtual fields with metadata annotations on the element
- * - Add BetterAnnotationsConfig singleton per service; each field annotated with @fc.ba.roles
+ * - Add BetterAnnotationsConfig singleton per service; each field annotated with @BetterAnnotations.roles
  * - Set @UI.*Hidden, @Capabilities, @Core.OperationAvailable annotations
  *
  * All metadata needed at runtime is stored as CSN annotations. No side channels.
  */
 function enhanceModel(model) {
-  // Collect qualifying entities grouped by service
   const serviceEntities = {};
 
   for (const [fqn, def] of Object.entries(model.definitions)) {
@@ -105,8 +181,6 @@ function enhanceModel(model) {
     if (!svcName) {
       continue;
     }
-
-    // Check service exists
     const svcDef = model.definitions[svcName];
     if (!svcDef || svcDef.kind !== "service") {
       continue;
@@ -118,7 +192,6 @@ function enhanceModel(model) {
     serviceEntities[svcName].push({ fqn, def, entityName: shortName(fqn) });
   }
 
-  // Process each service
   for (const [svcName, entities] of Object.entries(serviceEntities)) {
     const singletonFields = {}; // fieldName → roles[]
 
@@ -126,18 +199,15 @@ function enhanceModel(model) {
       const isReadonly = def["@readonly"] === true;
       const analysis = analyzeRestrictions(def["@restrict"]);
 
-      // Process CRUD operations
       for (const op of OPERATIONS) {
         const uiAnno = UI_HIDDEN_MAP[op];
         const capAnno = CAPABILITIES_MAP[op];
 
-        // Skip if already annotated
         if (def[uiAnno] !== undefined) {
           log.debug(`Skipping ${uiAnno} for ${fqn} — already annotated`);
           continue;
         }
 
-        // @readonly → static hidden for CREATE/UPDATE/DELETE
         if (isReadonly) {
           def[uiAnno] = true;
           def[capAnno] = false;
@@ -156,7 +226,6 @@ function enhanceModel(model) {
           }
 
           case "none": {
-            // Everyone can do it — no annotation needed
             log.debug(`${fqn}: ${op} allowed for all — skipping`);
             break;
           }
@@ -171,6 +240,38 @@ function enhanceModel(model) {
           }
 
           case "virtual": {
+            if (op === "CREATE") {
+              // CreateHidden cannot depend on properties of the row being created
+              // (the row does not exist yet). Route it via the parent association
+              // when one is present, otherwise fall back to a singleton with the
+              // set of roles involved in the grants.
+              const parent = findParentAssociation(fqn, def, model);
+              if (parent) {
+                const parentField = `__fc_canCreate_${entityName}`;
+                const rewrittenGrants = strategy.conditionalGrants.map((grant) => ({
+                  role: grant.role,
+                  where: rewriteWhereForParent(grant.where, parent.assocName),
+                }));
+                addVirtualElement(parent.parentDef, parentField, strategy.unconditionalRoles, rewrittenGrants);
+                def[uiAnno] = { xpr: ["not", { ref: [parent.assocName, parentField] }] };
+                def[capAnno] = { "=": `${parent.assocName}.${parentField}` };
+                log.debug(`${fqn}: CREATE via parent association ${parent.assocName}.${parentField}`);
+              } else {
+                // Root entity — fall back to a singleton over all involved roles.
+                const roles = [
+                  ...strategy.unconditionalRoles,
+                  ...strategy.conditionalGrants.map((g) => g.role).filter(Boolean),
+                ];
+                const uniqueRoles = [...new Set(roles)];
+                const fieldName = `can${op.charAt(0)}${op.slice(1).toLowerCase()}_${entityName}`;
+                singletonFields[fieldName] = uniqueRoles;
+                def[uiAnno] = { $edmJson: { $Not: { $Path: `/${SINGLETON_NAME}/${fieldName}` } } };
+                def[capAnno] = { $edmJson: { $Path: `/${SINGLETON_NAME}/${fieldName}` } };
+                log.debug(`${fqn}: CREATE root-entity singleton fallback (roles: ${uniqueRoles.join(", ")})`);
+              }
+              break;
+            }
+
             const fcField = `__fc_can${op.charAt(0)}${op.slice(1).toLowerCase()}`;
             addVirtualElement(def, fcField, strategy.unconditionalRoles, strategy.conditionalGrants);
             def[uiAnno] = { xpr: ["not", { ref: [fcField] }] };
@@ -181,12 +282,10 @@ function enhanceModel(model) {
         }
       }
 
-      // Process action restrictions → @Core.OperationAvailable
       const knownActions = def.actions ? Object.keys(def.actions) : [];
       const actionRestrictions = analyzeActionRestrictions(def["@restrict"], knownActions);
       if (def.actions) {
         for (const [actionName, actionDef] of Object.entries(def.actions)) {
-          // Skip if already annotated
           if (actionDef["@Core.OperationAvailable"] !== undefined) {
             log.debug(`Skipping @Core.OperationAvailable for ${fqn}/${actionName} — already annotated`);
             continue;
@@ -226,7 +325,7 @@ function enhanceModel(model) {
             case "virtual": {
               const fcField = `__fc_can_${actionName}`;
               addVirtualElement(def, fcField, strategy.unconditionalRoles, strategy.conditionalGrants);
-              actionDef["@Core.OperationAvailable"] = { "=": `$self.${fcField}` };
+              actionDef["@Core.OperationAvailable"] = { "=": fcField };
               log.debug(`${fqn}/${actionName}: Core.OperationAvailable virtual ${fcField}`);
               break;
             }
@@ -235,7 +334,6 @@ function enhanceModel(model) {
       }
     }
 
-    // Generate BetterAnnotationsConfig singleton if needed
     if (Object.keys(singletonFields).length) {
       const singletonFqn = `${svcName}.${SINGLETON_NAME}`;
 
@@ -259,7 +357,6 @@ function enhanceModel(model) {
 
         log.debug(`Generated ${singletonFqn} with fields: ${Object.keys(singletonFields).join(", ")}`);
       } else {
-        // Singleton already exists — add our fields with role annotations
         const existing = model.definitions[singletonFqn];
         if (!existing.elements) {
           existing.elements = {};
@@ -281,4 +378,6 @@ module.exports = {
   ANNO_ROLES,
   ANNO_UNCONDITIONAL,
   ANNO_CONDITIONAL,
+  findParentAssociation,
+  rewriteWhereForParent,
 };
