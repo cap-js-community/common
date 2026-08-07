@@ -1,0 +1,16 @@
+{
+  "cds": {
+    "betterAnnotations": true,
+    "requires": {
+      "auth": {
+        "kind": "mocked",
+        "users": {
+          "alice": { "roles": ["Employee"] },
+          "admin": { "roles": ["Admin"] },
+          "employee": { "roles": ["Employee"] },
+          "manager": { "roles": ["Manager"] }
+        }
+      }
+    }
+  }
+}
