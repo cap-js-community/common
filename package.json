@@ -53,24 +53,24 @@
   "dependencies": {
     "commander": "^15.0.0",
     "express": "^4.22.2 || ^5.2.1",
-    "redis": "^4.7.1 || ^5.12.1 || ^6.2.0",
+    "redis": "^4.7.1 || ^5.12.1 || ^6.2.1",
     "verror": "^1.10.1"
   },
   "devDependencies": {
     "@cap-js-community/common": "./",
-    "@cap-js/cds-test": "^1.0.1",
-    "@cap-js/sqlite": "^3.0.2",
-    "@sap/cds": "^10.0.5",
+    "@cap-js/cds-test": "^1.0.2",
+    "@cap-js/sqlite": "^3.1.0",
+    "@sap/cds": "^10.1.0",
     "@sap/cds-common-content": "^3.2.0",
-    "@sap/cds-dk": "^10.0.6",
-    "@vitest/coverage-v8": "^4.1.10",
-    "@vitest/eslint-plugin": "^1.6.26",
-    "eslint": "^10.8.0",
+    "@sap/cds-dk": "^10.1.0",
+    "@vitest/coverage-v8": "^5.0.0",
+    "@vitest/eslint-plugin": "^1.6.27",
+    "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-n": "^18.2.2",
+    "eslint-plugin-n": "^18.3.0",
     "prettier": "^3.9.6",
     "shelljs": "^0.10.0",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.0"
   },
   "cds": {
     "requires": {
