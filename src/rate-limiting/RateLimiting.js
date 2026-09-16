@@ -111,22 +111,20 @@ class RateLimiting {
   monitor(srv) {
     srv.rateLimiting = this;
 
-    if (parseInt(process.env.CF_INSTANCE_INDEX) === 0) {
-      (async () => {
+    (async () => {
+      try {
+        await this.calcResetTime();
+      } catch (err) {
+        this.log.error("Resetting rate limit time failed", err);
+      }
+      setInterval(async () => {
         try {
-          await this.calcResetTime();
+          await this.clearAllInWindow();
         } catch (err) {
-          this.log.error("Resetting rate limit time failed", err);
+          this.log.error("Resetting rate limit window failed", err);
         }
-        setInterval(async () => {
-          try {
-            await this.clearAllInWindow();
-          } catch (err) {
-            this.log.error("Resetting rate limit window failed", err);
-          }
-        }, this.window).unref();
-      })();
-    }
+      }, this.window).unref();
+    })();
 
     srv.before("*", async (req) => {
       if (!req.http?.req) {
