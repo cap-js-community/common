@@ -2,10 +2,7 @@
 
 const cds = require("@sap/cds");
 
-const redisCounter = require("./redis/counter");
-const redisResetTime = require("./redis/resetTime");
-
-const { connectionCheck } = require("./redis/common");
+const createStore = require("./store");
 
 const COMPONENT_NAME = "/cap-js-community-common/rate-limiting";
 
@@ -14,25 +11,18 @@ class RateLimiting {
     this.log = cds.log(COMPONENT_NAME);
     this.service = service;
     this.id = service.name;
-    this.resetTime = null;
-    this.tenantCounts = {}; // [<tenant>: {concurrent: 0, window: 0}]
+    this.tenantCounts = {}; // [<tenant>: {concurrent: 0}]
     this.maxConcurrent =
       maxConcurrent || service.definition["@cds.rateLimiting.maxConcurrent"] || cds.env.rateLimiting.maxConcurrent;
     this.maxInWindow =
       maxInWindow || service.definition["@cds.rateLimiting.maxInWindow"] || cds.env.rateLimiting.maxInWindow;
     this.window = window || service.definition["@cds.rateLimiting.window"] || cds.env.rateLimiting.window;
-    this.redisActive = cds.env.rateLimiting.redis;
   }
 
   async setup() {
-    if (this.redisActive && !(await connectionCheck())) {
-      this.redisActive = cds.env.rateLimiting.redis = false;
-    }
-    this.redisTenantInWindowCounts = redisCounter({
-      name: `rateLimiting:${this.id}:inWindowCounts`,
-    });
-    this.redisTenantResetTime = redisResetTime({
-      name: `rateLimiting:${this.id}:resetTime`,
+    this.store = await createStore({
+      name: `rateLimiting:${this.id}`,
+      window: this.window,
     });
     this.monitor(this.service);
     this.log.info("using rate limiting", {
@@ -40,37 +30,31 @@ class RateLimiting {
       maxConcurrent: this.maxConcurrent,
       maxInWindow: this.maxInWindow,
       window: this.window,
-      redis: this.redisActive,
+      store: this.store.kind,
+      expires: this.store.expires,
     });
   }
 
   initTenant(tenant) {
     tenant = tenant || "";
-    this.tenantCounts[tenant] = this.tenantCounts[tenant] || { concurrent: 0, window: 0 };
+    this.tenantCounts[tenant] = this.tenantCounts[tenant] || { concurrent: 0 };
     return tenant;
   }
 
   async calcResetTime() {
-    this.resetTime = new Date();
-    this.resetTime.setMilliseconds(this.resetTime.getMilliseconds() + this.window);
-    await (await this.redisTenantResetTime).set(this.resetTime);
-    return this.resetTime;
+    await this.store.clearResetTime();
+    return await this.nextResetTime();
   }
 
   async nextResetTime() {
-    this.resetTime = await (await this.redisTenantResetTime).get();
-    if (this.resetTime) {
-      return this.resetTime;
-    }
-    return await this.calcResetTime();
+    return await this.store.setResetTime();
   }
 
   async increment(tenant) {
     tenant = this.initTenant(tenant);
     const concurrentCount = this.tenantCounts[tenant].concurrent + 1;
     this.tenantCounts[tenant].concurrent = concurrentCount;
-    const inWindowCount = await (await this.redisTenantInWindowCounts).increment(tenant);
-    this.tenantCounts[tenant].window = inWindowCount;
+    const inWindowCount = await this.store.increment(tenant);
     return {
       ok: concurrentCount <= this.maxConcurrent && inWindowCount <= this.maxInWindow,
       count: {
@@ -92,7 +76,7 @@ class RateLimiting {
 
   async clearInWindow(tenant) {
     tenant = this.initTenant(tenant);
-    this.tenantCounts[tenant].window = await (await this.redisTenantInWindowCounts).reset(tenant);
+    await this.store.reset(tenant);
   }
 
   async clearAllInWindow() {
@@ -111,7 +95,7 @@ class RateLimiting {
   monitor(srv) {
     srv.rateLimiting = this;
 
-    if (parseInt(process.env.CF_INSTANCE_INDEX) === 0) {
+    if (!this.store.expires) {
       (async () => {
         try {
           await this.calcResetTime();

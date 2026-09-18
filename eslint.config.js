@@ -11,7 +11,7 @@ const configPrettier = require("eslint-config-prettier");
 // https://eslint.org/docs/rules/
 module.exports = [
   {
-    ignores: [".github", "**/node_modules/", "**/temp/", "**/reports/"],
+    ignores: [".github", "**/node_modules/", "**/temp/", "**/reports/", "gen/**"],
   },
   js.configs.recommended,
   nodePlugin.configs["flat/recommended-script"],

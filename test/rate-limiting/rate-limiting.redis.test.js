@@ -2,7 +2,7 @@
 
 const cds = require("@sap/cds");
 
-require("../mocks/redis");
+const { client } = require("../mocks/redis");
 
 process.env.PORT = 0; // Random
 
@@ -120,12 +120,38 @@ describe("Rate Limiting", () => {
 
       await rateLimiting.clearAllInWindow();
 
+      // Under Redis the shared reset time is owned by the key's TTL and stays
+      // stable within a window (all instances agree); clearing the window
+      // counters does not force it to move. It rolls forward only on expiry.
       const date2 = await rateLimiting.nextResetTime();
       expect(date2).toBeDefined();
-      expect(date1).not.toEqual(date2);
+      expect(date2.getTime()).toEqual(date1.getTime());
 
       const response = await GET("/odata/v4/test/Books");
       expect(response.status).toEqual(200);
+    });
+
+    it("Arms the in-window counter to expire at the shared reset time (aligned, no elected instance)", async () => {
+      await rateLimiting.clearInWindow();
+      // The counter is armed to expire exactly at the shared reset time so all
+      // tenants' windows stay aligned with X-RateLimit-Reset across instances.
+      const reset = await rateLimiting.nextResetTime();
+      client.pExpireAt.mockClear();
+      await rateLimiting.increment("ttl-tenant");
+      expect(client.pExpireAt).toHaveBeenCalledWith(
+        "rateLimiting:TestService:inWindowCounts/ttl-tenant",
+        reset.getTime(),
+      );
+      // Subsequent increments within the window must not re-arm the expiry.
+      client.pExpireAt.mockClear();
+      await rateLimiting.increment("ttl-tenant");
+      expect(client.pExpireAt).not.toHaveBeenCalled();
+    });
+
+    it("Coordinates reset time via set-if-absent rather than an elected instance", async () => {
+      const first = await rateLimiting.nextResetTime();
+      const second = await rateLimiting.nextResetTime();
+      expect(second.getTime()).toEqual(first.getTime());
     });
   });
 });

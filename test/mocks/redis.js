@@ -42,17 +42,28 @@ const client = {
   get: vi.fn((key) => {
     return counter[key];
   }),
-  set: vi.fn((key, value) => {
+  set: vi.fn((key, value, options) => {
+    if (options?.NX && counter[key] !== undefined) {
+      return null;
+    }
     counter[key] = value;
     return "OK";
   }),
   incr: vi.fn((key) => {
-    counter[key]++;
+    counter[key] = (counter[key] ?? 0) + 1;
     return counter[key];
   }),
   decr: vi.fn((key) => {
-    counter[key]--;
+    counter[key] = (counter[key] ?? 0) - 1;
     return counter[key];
+  }),
+  pExpireAt: vi.fn(() => {
+    return true;
+  }),
+  del: vi.fn((key) => {
+    const existed = counter[key] !== undefined;
+    delete counter[key];
+    return existed ? 1 : 0;
   }),
   subscribe: vi.fn((channel, cb) => {
     if (subscribeError) {
