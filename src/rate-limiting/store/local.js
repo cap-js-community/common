@@ -17,7 +17,7 @@ module.exports = ({ window } = {}) => {
   }
 
   async function getResetTime() {
-    return resetTime ?? await setResetTime();
+    return resetTime ?? (await setResetTime());
   }
 
   async function increment(tenant) {
