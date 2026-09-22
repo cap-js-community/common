@@ -24,6 +24,7 @@ class RateLimiting {
       name: `rateLimiting:${this.id}`,
       window: this.window,
     });
+    await this.store.setup();
     this.monitor(this.service);
     this.log.info("using rate limiting", {
       service: this.service.name,
@@ -39,15 +40,6 @@ class RateLimiting {
     tenant = tenant || "";
     this.tenantCounts[tenant] = this.tenantCounts[tenant] || { concurrent: 0 };
     return tenant;
-  }
-
-  async calcResetTime() {
-    await this.store.clearResetTime();
-    return await this.nextResetTime();
-  }
-
-  async nextResetTime() {
-    return await this.store.setResetTime();
   }
 
   async increment(tenant) {
@@ -74,16 +66,16 @@ class RateLimiting {
     this.tenantCounts[tenant].concurrent = Math.max(concurrentCount, 0);
   }
 
-  async clearInWindow(tenant) {
-    tenant = this.initTenant(tenant);
-    await this.store.reset(tenant);
+  async resetTime() {
+    return this.store.getResetTime();
   }
 
-  async clearAllInWindow() {
-    await this.calcResetTime();
+  async resetWindow() {
+    await this.store.setResetTime();
     await Promise.allDone(
       Object.keys(this.tenantCounts).map(async (tenant) => {
-        await this.clearInWindow(tenant);
+        tenant = this.initTenant(tenant);
+        await this.store.reset(tenant);
       }),
     );
   }
@@ -94,23 +86,6 @@ class RateLimiting {
 
   monitor(srv) {
     srv.rateLimiting = this;
-
-    if (!this.store.expires) {
-      (async () => {
-        try {
-          await this.calcResetTime();
-        } catch (err) {
-          this.log.error("Resetting rate limit time failed", err);
-        }
-        setInterval(async () => {
-          try {
-            await this.clearAllInWindow();
-          } catch (err) {
-            this.log.error("Resetting rate limit window failed", err);
-          }
-        }, this.window).unref();
-      })();
-    }
 
     srv.before("*", async (req) => {
       if (!req.http?.req) {
@@ -144,6 +119,16 @@ class RateLimiting {
         }
       }
     });
+
+    if (!this.store.expires) {
+      setInterval(async () => {
+        try {
+          await this.resetWindow();
+        } catch (err) {
+          this.log.error("Resetting rate limit window failed", err);
+        }
+      }, this.window).unref();
+    }
   }
 
   async accept(req, status) {
@@ -190,7 +175,7 @@ class RateLimiting {
     if (response && !response.headersSent) {
       response.setHeader("X-RateLimit-Limit", this.maxInWindow);
       response.setHeader("X-RateLimit-Remaining", Math.max(this.maxInWindow - count.inWindow, 0));
-      response.setHeader("X-RateLimit-Reset", Math.ceil((await this.nextResetTime()).getTime() / 1000));
+      response.setHeader("X-RateLimit-Reset", Math.ceil((await this.resetTime()).getTime() / 1000));
       response.setHeader("Retry-After", Math.ceil(this.window / 1000));
       response.setHeader("Date", new Date().toUTCString());
     }

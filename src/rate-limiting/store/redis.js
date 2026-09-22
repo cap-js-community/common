@@ -29,11 +29,21 @@ module.exports = ({ name = "default", window } = {}) => {
   const resetTimeKey = `${name}:resetTime`;
   const countsName = `${name}:inWindowCounts`;
 
+  async function setup() {
+    return await perform(resetTimeKey, async (client, key) => {
+      const value = await client.get(key);
+      if (value && new Date(value).getTime() <= Date.now()) {
+        await client.del(key);
+      }
+      return true;
+    });
+  }
+
   async function setResetTime() {
     const date = new Date();
     date.setMilliseconds(date.getMilliseconds() + window);
     return await perform(resetTimeKey, async (client, key) => {
-      const status = await client.set(key, date.toISOString(), { NX: true, PX: window });
+      const status = await client.set(key, date.toISOString(), { NX: true, PXAT: date.getTime() });
       if (status === "OK") {
         return date;
       }
@@ -42,16 +52,20 @@ module.exports = ({ name = "default", window } = {}) => {
     });
   }
 
-  async function clearResetTime() {
-    // no-op as reset time expires
+  async function getResetTime() {
+    return await perform(resetTimeKey, async (client, key) => {
+      const value = await client.get(key);
+      if (value && new Date(value).getTime() > Date.now()) {
+        return new Date(value);
+      }
+      return await setResetTime();
+    });
   }
 
   async function increment(tenant) {
     return await perform(`${countsName}/${tenant}`, async (client, key) => {
       const value = await client.incr(key);
-      if (value === 1) {
-        await client.pExpireAt(key, (await setResetTime()).getTime());
-      }
+      await client.pExpireAt(key, (await getResetTime()).getTime());
       return value;
     });
   }
@@ -66,8 +80,9 @@ module.exports = ({ name = "default", window } = {}) => {
   return {
     kind: KIND,
     expires: true,
+    setup,
     setResetTime,
-    clearResetTime,
+    getResetTime,
     increment,
     reset,
   };

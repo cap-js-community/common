@@ -20,7 +20,7 @@ describe("Rate Limiting", () => {
   beforeEach(async () => {
     await data.reset();
     vi.clearAllMocks();
-    await rateLimiting.clearInWindow();
+    await rateLimiting.resetWindow();
   });
 
   describe("Rate Limiting", () => {
@@ -80,7 +80,7 @@ describe("Rate Limiting", () => {
     });
 
     it("Restrict request per window", async () => {
-      await rateLimiting.clearInWindow();
+      await rateLimiting.resetWindow();
 
       const response1 = await GET("/odata/v4/test/Books");
       expect(response1.headers["x-ratelimit-limit"]).toEqual("10000");
@@ -115,7 +115,7 @@ describe("Rate Limiting", () => {
         expect(err.response.headers["retry-after"]).toEqual("3600");
         expect(err.response.headers["date"]).toBeDefined();
       }
-      const date1 = await rateLimiting.nextResetTime();
+      const date1 = await rateLimiting.resetTime();
       expect(date1).toBeDefined();
 
       // Simulate expiration
@@ -123,7 +123,7 @@ describe("Rate Limiting", () => {
       client.del("rateLimiting:TestService:inWindowCounts/");
       client.del("rateLimiting:TestService:resetTime");
 
-      const date2 = await rateLimiting.nextResetTime();
+      const date2 = await rateLimiting.resetTime();
       expect(date2).toBeDefined();
       expect(date2.getTime()).toBeGreaterThan(date1.getTime());
 
@@ -132,8 +132,8 @@ describe("Rate Limiting", () => {
     });
 
     it("In-window counter to expire at the shared reset time", async () => {
-      await rateLimiting.clearInWindow();
-      const reset = await rateLimiting.nextResetTime();
+      await rateLimiting.resetWindow();
+      const reset = await rateLimiting.resetTime();
       client.pExpireAt.mockClear();
       await rateLimiting.increment("ttl-tenant");
       expect(client.pExpireAt).toHaveBeenCalledWith(
@@ -142,12 +142,15 @@ describe("Rate Limiting", () => {
       );
       client.pExpireAt.mockClear();
       await rateLimiting.increment("ttl-tenant");
-      expect(client.pExpireAt).not.toHaveBeenCalled();
+      expect(client.pExpireAt).toHaveBeenCalledWith(
+        "rateLimiting:TestService:inWindowCounts/ttl-tenant",
+        reset.getTime(),
+      );
     });
 
     it("Coordinates reset time via set-if-absent rather than an elected instance", async () => {
-      const first = await rateLimiting.nextResetTime();
-      const second = await rateLimiting.nextResetTime();
+      const first = await rateLimiting.resetTime();
+      const second = await rateLimiting.resetTime();
       expect(second.getTime()).toEqual(first.getTime());
     });
   });

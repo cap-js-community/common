@@ -6,16 +6,18 @@ module.exports = ({ window } = {}) => {
   let resetTime = null;
   const counts = {};
 
+  async function setup() {
+    // Nothing to clear
+  }
+
   async function setResetTime() {
-    if (!resetTime) {
-      resetTime = new Date();
-      resetTime.setMilliseconds(resetTime.getMilliseconds() + window);
-    }
+    resetTime = new Date();
+    resetTime.setMilliseconds(resetTime.getMilliseconds() + window);
     return resetTime;
   }
 
-  async function clearResetTime() {
-    resetTime = null;
+  async function getResetTime() {
+    return resetTime ?? await setResetTime();
   }
 
   async function increment(tenant) {
@@ -31,8 +33,9 @@ module.exports = ({ window } = {}) => {
   return {
     kind: KIND,
     expires: false,
+    setup,
     setResetTime,
-    clearResetTime,
+    getResetTime,
     increment,
     reset,
   };

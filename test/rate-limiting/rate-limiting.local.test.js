@@ -19,7 +19,7 @@ describe("Rate Limiting", () => {
   beforeEach(async () => {
     await data.reset();
     vi.clearAllMocks();
-    await rateLimiting.clearInWindow();
+    await rateLimiting.resetWindow();
   });
 
   describe("Rate Limiting", () => {
@@ -79,7 +79,7 @@ describe("Rate Limiting", () => {
     });
 
     it("Restrict request per window", async () => {
-      await rateLimiting.clearInWindow();
+      await rateLimiting.resetWindow();
 
       const response1 = await GET("/odata/v4/test/Books");
       expect(response1.headers["x-ratelimit-limit"]).toEqual("10000");
@@ -114,14 +114,16 @@ describe("Rate Limiting", () => {
         expect(err.response.headers["retry-after"]).toEqual("3600");
         expect(err.response.headers["date"]).toBeDefined();
       }
-      const date1 = await rateLimiting.nextResetTime();
+      const date1 = await rateLimiting.resetTime();
       expect(date1).toBeDefined();
 
-      await rateLimiting.clearAllInWindow();
+      // Simulate expiration
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await rateLimiting.resetWindow();
 
-      const date2 = await rateLimiting.nextResetTime();
+      const date2 = await rateLimiting.resetTime();
       expect(date2).toBeDefined();
-      expect(date1).not.toEqual(date2);
+      expect(date2.getTime()).toBeGreaterThan(date1.getTime());
 
       const response = await GET("/odata/v4/test/Books");
       expect(response.status).toEqual(200);
