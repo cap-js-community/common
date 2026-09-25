@@ -3,6 +3,7 @@
 /* eslint-disable n/no-process-exit */
 
 const http = require("http");
+const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
@@ -84,14 +85,16 @@ class LocalHTML5Repo {
       // Forward everything else to the original HTML5 Apps Repo
       app.use("/", (req, res) => {
         const target = new URL(this.originalHtmlRepoUrl);
+        const isHttps = target.protocol === "https:";
+        const transport = isHttps ? https : http;
         const options = {
           hostname: target.hostname,
-          port: target.port,
+          port: target.port || (isHttps ? 443 : 80),
           path: req.originalUrl,
           method: req.method,
           headers: { ...req.headers, host: target.host },
         };
-        const proxyReq = http.request(options, (proxyRes) => {
+        const proxyReq = transport.request(options, (proxyRes) => {
           res.writeHead(proxyRes.statusCode, proxyRes.headers);
           proxyRes.pipe(res);
         });

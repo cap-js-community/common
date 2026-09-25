@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- tbd
+- Fix local HTML5 repo for https
 
 ## Version 0.5.3 - 2026-09-22
 
