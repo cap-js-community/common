@@ -1,6 +1,6 @@
 {
   "name": "@cap-js-community/common",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "CAP Node.js Community Common",
   "homepage": "https://cap.cloud.sap/",
   "engines": {
@@ -138,5 +138,8 @@
       "tmpDir": false,
       "baseDir": "temp"
     }
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true
   }
 }
