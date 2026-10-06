@@ -70,4 +70,20 @@ module.exports = [
       "vitest/valid-expect": ["off"],
     },
   },
+  {
+    // UI5 modules use `sap.ui.define(...)` with a function-scoped `"use strict"`.
+    files: ["**/webapp/**/*.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: {
+        sap: false,
+      },
+    },
+    plugins: {},
+    rules: {
+      strict: ["error", "function"],
+      "no-unused-vars": ["off"],
+      "n/hashbang": ["off"],
+    },
+  },
 ];
