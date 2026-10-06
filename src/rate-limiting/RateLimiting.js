@@ -81,7 +81,7 @@ class RateLimiting {
   }
 
   isExternal(req) {
-    return !!req.protocol?.match(/rest|odata/);
+    return !!req.protocol?.match(/rest|odata|mcp|ws|graphql/);
   }
 
   monitor(srv) {
