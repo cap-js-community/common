@@ -22,6 +22,7 @@ This project provides common functionality for CDS services to be consumed with 
   - [Redis Client](#redis-client)
   - [Local HTML5 Repository](#local-html5-repository)
   - [CDM Builder](#cdm-builder)
+  - [Better Annotations](#better-annotations)
 - [Support, Feedback, Contributing](#support-feedback-contributing)
 - [Code of Conduct](#code-of-conduct)
 - [Licensing](#licensing)
@@ -463,6 +464,134 @@ The generated CDM is (per default) generated at `app/cdm.json`.
 
 - `-f, --force`: Overwrite existing CDM file. Default is `false`
 - `-t, --target`: Specify target path for generated CDM file. Default is `app/cdm.json`
+
+## Better Annotations
+
+Auto-generates UI visibility annotations (`@UI.CreateHidden`, `@UI.UpdateHidden`, `@UI.DeleteHidden`), capabilities (`@Capabilities.InsertRestrictions.Insertable`, `@Capabilities.UpdateRestrictions.Updatable`, `@Capabilities.DeleteRestrictions.Deletable`) and `@Core.OperationAvailable` for bound actions from `@restrict` declarations. Fiori Elements buttons are disabled / hidden automatically in sync with the backend authorization policy.
+
+Only entities that already carry at least one `@UI.*` annotation are processed — non-UI entities are skipped. Existing manual annotations are always preserved (debug-logged and skipped).
+
+Enable / disable via CDS environment:
+
+```json
+{
+  "cds": {
+    "betterAnnotations": true
+  }
+}
+```
+
+Value `true` enables, `false` disables. Default (project-level `package.json`) is `true`.
+
+<details>
+<summary>How It Works</summary>
+
+Runs in two phases:
+
+1. **`cds.on("loaded")` — model enhancement**
+   - Scans qualifying entities (`@restrict` + at least one `@UI.*` annotation)
+   - Adds annotations directly to the CSN — no side channels, everything is model-local
+   - Generates a per-service `BetterAnnotationsConfig` singleton entity for role-based checks
+   - Adds `__fc_*` virtual boolean elements for instance-based checks (with runtime metadata stored as CSN annotations on the element itself)
+2. **`cds.on("serving")` — handler registration**
+   - Registers `on('READ', BetterAnnotationsConfig)` returning per-user role booleans
+   - Registers a wildcard `before('READ')` handler that, when a `__fc_*` column is requested,
+     rewrites the `SELECT` to include a calculated column (`{val: true|false}` or `{xpr: [...]}`)
+
+</details>
+
+<details>
+<summary>Generation Strategy</summary>
+
+Per operation (`CREATE` / `UPDATE` / `DELETE`) and per bound action:
+
+| `@restrict` shape                                       | Generated                                                                                                              |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Operation not granted to anyone                         | `@UI.<Op>Hidden: true` + `@Capabilities.*: false`                                                                      |
+| Operation granted to everyone (`grant: '*'` no `where`) | No annotation (nothing to hide)                                                                                        |
+| Granted to specific role(s), no `where`                 | `BetterAnnotationsConfig` singleton field + `$edmJson` path (`@UI.<Op>Hidden` negated, `@Capabilities.*` positive)     |
+| `where` clause (with or without role)                   | Virtual `__fc_can<Op>` element + expression annotation (`@UI.<Op>Hidden: (not __fc_...)`, `@Capabilities.*: __fc_...`) |
+| Entity has `@readonly`                                  | Static hidden + non-mutable for all CUD                                                                                |
+
+Bound actions in `@restrict` (e.g. `grant: ['publish'], to: ['Editor']`) generate the same three strategies for `@Core.OperationAvailable`. `grant: '*'` on a role automatically covers every action declared on the entity, even ones not explicitly listed in the restrict entry.
+
+</details>
+
+<details>
+<summary>Supported <code>where</code> Patterns</summary>
+
+The plugin currently maps these shapes into CQL expressions (used as calculated column
+`{xpr: [...]}` in the `SELECT`):
+
+- `<field> = $user` / `<field> = $user.id` / `$user.id = <field>`
+- `<field> = $user.<attr>` / `$user.<attr> = <field>`
+- Dotted / association paths, e.g. `book.createdBy = $user.id` — resolved via the CQL join (no
+  extra DB read from the plugin)
+
+Unsupported `where` clauses are treated best-effort: if the user matches the required role, the
+button is enabled; otherwise disabled. The backend `@restrict` remains authoritative.
+
+</details>
+
+<details>
+<summary>Example</summary>
+
+```cds
+@requires: 'authenticated-user'
+service BookshopService {
+
+  @restrict: [
+    { grant: ['READ'],   to: ['Employee', 'Admin'] },
+    { grant: ['*'],      to: ['Admin'] },
+    { grant: ['publish'], to: ['Employee'], where: 'createdBy = $user.id' },
+    { grant: ['UPDATE', 'DELETE'], to: ['Employee'], where: 'createdBy = $user.id' }
+  ]
+  @odata.draft.enabled
+  entity Books as projection on db.Books actions {
+    action publish();
+  };
+
+  @restrict: [
+    { grant: ['READ'],   to: ['Employee', 'Admin'] },
+    { grant: ['*'],      to: ['Admin'] },
+    { grant: ['CREATE', 'UPDATE', 'DELETE'], to: ['Employee'], where: 'book.createdBy = $user.id' }
+  ]
+  entity Pages as projection on db.Pages;
+}
+
+annotate BookshopService.Books with @UI.LineItem: [
+  { Value: title },
+  { $Type: 'UI.DataFieldForAction', Action: 'BookshopService.publish', Label: 'Publish' }
+];
+```
+
+Result:
+
+- `BetterAnnotationsConfig` singleton exposed at `/BookshopService/BetterAnnotationsConfig` with
+  role booleans (empty for `Books` in this example because everything is instance-scoped)
+- Virtual `__fc_canUpdate`, `__fc_canDelete`, `__fc_can_publish` elements on `Books` — auto-computed
+  per row (`createdBy = $user.id`)
+- Virtual `__fc_canCreate`, `__fc_canUpdate`, `__fc_canDelete` on `Pages` — auto-computed via the
+  parent path `book.createdBy = $user.id`
+- Fiori Elements list report and object page automatically hide / disable the buttons per instance
+
+</details>
+
+<details>
+<summary>CSN Metadata Annotations</summary>
+
+Metadata needed at request time is stored as CSN annotations on the generated elements (no
+in-memory side channel, no globals):
+
+- `@BetterAnnotations.roles`: list of roles on a `BetterAnnotationsConfig` singleton field
+- `@BetterAnnotations.unconditionalRoles`: on a `__fc_*` element, roles that grant the operation
+  without a `where` clause
+- `@BetterAnnotations.conditionalGrants`: on a `__fc_*` element, list of `{ role, where }` grants
+
+These are internal — they exist to survive `cds.compile.for.nodejs` and MTX re-loads so handlers
+can rebuild the calculated column at request time.
+
+</details>
 
 ## Support, Feedback, Contributing
 
