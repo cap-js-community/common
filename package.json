@@ -104,6 +104,7 @@
       "retry": 5,
       "redis": true
     },
+    "betterAnnotations": true,
     "replicationCache": {
       "plugin": true,
       "[test]": {

@@ -3,7 +3,7 @@
 const cds = require("@sap/cds");
 require("./src/common/promise");
 
-const { ReplicationCache, RateLimiting } = require("./src");
+const { ReplicationCache, RateLimiting, BetterAnnotations } = require("./src");
 
 if (cds.env.rateLimiting.plugin) {
   cds.on("serving", async (service) => {
@@ -21,4 +21,9 @@ if (cds.env.rateLimiting.plugin) {
 
 if (cds.env.replicationCache.plugin) {
   cds.replicationCache = new ReplicationCache();
+}
+
+if (cds.env.betterAnnotations) {
+  const betterAnnotations = new BetterAnnotations();
+  betterAnnotations.attach();
 }
