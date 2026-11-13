@@ -61,6 +61,7 @@ class CDMBuilder {
     this.addHomepageApp(cdm);
     this.addBusinessApps(cdm, apps);
     this.addUrlTemplates(cdm);
+    this.pruneUnresolvedViz(cdm);
     this.addRoles(cdm, roles);
     if (!this.options.skipWrite) {
       fs.mkdirSync(path.dirname(this.targetPath), { recursive: true });
@@ -352,6 +353,9 @@ class CDMBuilder {
       const xsSecurity = require(this.xsSecurityPath);
       scopes = Object.fromEntries(xsSecurity.scopes.map((scope) => [this.localScope(scope.name), scope]));
     }
+    const catalogRefs = (cdm.payload.catalogs || []).map((catalog) => ({ id: catalog.identification.id }));
+    const groupRefs = (cdm.payload.groups || []).map((group) => ({ id: group.identification.id }));
+    const spaceRefs = (cdm.payload.spaces || []).map((space) => ({ id: space.identification.id }));
     for (const role of Object.keys(roles)) {
       const scope = scopes[role];
       cdm.payload.roles.push({
@@ -363,9 +367,9 @@ class CDMBuilder {
           ...(this.i18nBundle ? { i18n: "i18n/role.properties" } : {}),
         },
         payload: {
-          catalogs: [{ id: `${this.namespace}-catalog` }],
-          groups: [{ id: `${this.namespace}-group` }],
-          spaces: [{ id: `${this.namespace}-space` }],
+          catalogs: catalogRefs.map((ref) => ({ ...ref })),
+          groups: groupRefs.map((ref) => ({ ...ref })),
+          spaces: spaceRefs.map((ref) => ({ ...ref })),
           apps: [...roles[role].map((app) => ({ id: app.id })), { id: `${this.namespace}-shell-home` }],
         },
         ...(!this.i18nBundle
@@ -381,6 +385,22 @@ class CDMBuilder {
             }
           : {}),
       });
+    }
+  }
+
+  pruneUnresolvedViz(cdm) {
+    const appIds = new Set((cdm.payload.apps || []).map((app) => app.identification.id));
+    const isResolved = (viz) => appIds.has(viz.appId);
+    for (const catalog of cdm.payload.catalogs || []) {
+      catalog.payload.viz = (catalog.payload.viz || []).filter(isResolved);
+    }
+    for (const group of cdm.payload.groups || []) {
+      group.payload.viz = (group.payload.viz || []).filter(isResolved);
+    }
+    for (const page of cdm.payload.pages || []) {
+      for (const section of page.payload.sections || []) {
+        section.viz = (section.viz || []).filter(isResolved);
+      }
     }
   }
 
