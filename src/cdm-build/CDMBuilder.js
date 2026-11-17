@@ -336,7 +336,7 @@ class CDMBuilder {
         payload: {
           urlTemplate: template.template,
           parameters: {
-            mergeWith: "/urlTemplates/urltemplate.base/payload/parameters/names",
+            mergeWith: "/urlTemplates/urltemplate.base",
             names: template.names,
           },
           capabilities: { navigationMode: "standalone" },
@@ -471,7 +471,7 @@ class CDMBuilder {
         }
         const texts = cds.load.properties(path.join(dir, file));
         const match = file.match(regexLanguageSuffixFile);
-        const lang = match?.[1] || this.defaultLanguage;
+        const lang = (match?.[1] || this.defaultLanguage).replace(/_/g, "-");
         result[lang] ||= {};
         Object.assign(result[lang], texts);
       }

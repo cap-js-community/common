@@ -346,7 +346,7 @@ exports[`CDM Builder > Build 1`] = `
             "navigationMode": "standalone",
           },
           "parameters": {
-            "mergeWith": "/urlTemplates/urltemplate.base/payload/parameters/names",
+            "mergeWith": "/urlTemplates/urltemplate.base",
             "names": {
               "intentParameters": "{*}",
               "path": "{./sap.integration/urlTemplateParams/path}",
@@ -377,7 +377,7 @@ exports[`CDM Builder > Build 1`] = `
             "navigationMode": "standalone",
           },
           "parameters": {
-            "mergeWith": "/urlTemplates/urltemplate.base/payload/parameters/names",
+            "mergeWith": "/urlTemplates/urltemplate.base",
             "names": {
               "action": "{./sap.integration/urlTemplateParams/action}",
               "intentParameters": "{*}",
